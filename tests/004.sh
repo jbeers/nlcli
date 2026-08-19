@@ -27,6 +27,13 @@ out=$(INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"curl http://exa
 	"$interpret" -n "http://example.com is up")
 check url-not-prefix test "$out" = "curl http://example.com"
 
+set +e
+err=$( "$interpret" -n "fooctl: read a file" 2>&1 >/dev/null)
+status=$?
+set -e
+check missing-tool-exit test "$status" -ne 0
+check missing-tool-msg test "${err#*fooctl}" != "$err"
+
 if [ "$fail" -ne 0 ]; then
 	echo "$fail failed"
 	exit 1

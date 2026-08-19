@@ -478,6 +478,17 @@ function resolve(request) {
 	if (getSystemSetting("INTERPRET_DUMP_CONTEXT", "") != "") {
 		systemOutput(ambient(), true, true)
 	}
+	stubs = loadStubs()
+	if (hint.tool != "" && arrayLen(stubs) == 0) {
+		found = runInspect({ operation: "command_exists", arguments: hint.tool })
+		if (!found.result) {
+			return failAction(hint.tool & " not found")
+		}
+	}
+	intent = hint.request
+	if (hint.tool != "") {
+		intent = "Use only the " & hint.tool & " command. Do not substitute another program. Intent: " & hint.request
+	}
 	example = serializeJSON({
 		type: "ExecuteCommand",
 		command: "ls -l --block-size=M",
@@ -489,9 +500,14 @@ function resolve(request) {
 		{ role: "system", content: systemPrompt(hint.tool) },
 		{ role: "user", content: "ls with file size in mb" },
 		{ role: "assistant", content: example },
-		{ role: "user", content: hint.request }
+		{ role: "user", content: intent }
 	]
-	stubs = loadStubs()
+	if (hint.tool != "") {
+		messages = [
+			{ role: "system", content: systemPrompt(hint.tool) },
+			{ role: "user", content: intent }
+		]
+	}
 	at = 1
 	inspects = 0
 	turns = 0
