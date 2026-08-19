@@ -200,7 +200,7 @@ function systemPrompt(tool) {
 	return prompt
 }
 
-function chat(messages) {
+function complete(messages) {
 	body = serializeJSON({
 		model: modelName(),
 		temperature: 0,
@@ -211,7 +211,6 @@ function chat(messages) {
 	if (key != "") {
 		headers["Authorization"] = "Bearer " & key
 	}
-	httpResult = {}
 	try {
 		httpResult = http({
 			url: endpoint(),
@@ -220,27 +219,35 @@ function chat(messages) {
 			body: body
 		})
 	} catch (e) {
-		return failAction("LLM request failed: " & e.message)
+		return { ok: false, text: "", error: e.message }
 	}
 	if (httpResult.status < 200 || httpResult.status >= 300) {
-		return failAction("LLM request failed: " & httpResult.file_content)
+		return { ok: false, text: "", error: httpResult.file_content }
 	}
 	try {
 		resp = deserializeJSON(httpResult.file_content)
 	} catch (e) {
-		return failAction("LLM returned non-JSON")
+		return { ok: false, text: "", error: "LLM returned non-JSON" }
 	}
 	if (structKeyExists(resp, "error")) {
 		msg = serializeJSON(resp.error)
 		if (structKeyExists(resp.error, "message")) {
 			msg = resp.error.message
 		}
-		return failAction(msg)
+		return { ok: false, text: "", error: msg }
 	}
 	if (!structKeyExists(resp, "choices") || arrayLen(resp.choices) < 1) {
-		return failAction("LLM returned no choices")
+		return { ok: false, text: "", error: "LLM returned no choices" }
 	}
-	return parseAction(messageText(resp.choices[1].message))
+	return { ok: true, text: messageText(resp.choices[1].message), error: "" }
+}
+
+function chat(messages) {
+	got = complete(messages)
+	if (!got.ok) {
+		return failAction("LLM request failed: " & got.error)
+	}
+	return parseAction(got.text)
 }
 
 function messageText(message) {
@@ -396,24 +403,63 @@ function tokenizeCommand(command) {
 function tokenMeaning(tok, expectCmd) {
 	t = lcase(tok)
 	if (t == "&&") {
-		return "run next only if previous succeeds"
+		return "run the next command only if the previous one exited 0"
 	}
 	if (t == "||") {
-		return "run next only if previous fails"
+		return "run the next command only if the previous one failed"
 	}
 	if (t == "|") {
-		return "pipe stdout into the next command"
+		return "connect previous stdout to the next command's stdin"
 	}
 	if (t == ";") {
-		return "run next regardless of previous status"
+		return "run the next command regardless of the previous exit status"
+	}
+	if (t == "ls") {
+		return "list directory entries (GNU/BSD coreutils). default: current dir, no dotfiles, names only"
+	}
+	if (t == "-l") {
+		return "long format: mode, link count, owner, group, size, mtime, name"
+	}
+	if (t == "-h") {
+		return "human-readable sizes (1K, 234M). mixed units, not strictly MB"
+	}
+	if (left(t, 13) == "--block-size=") {
+		return "size unit for -l/-s. M = 1,048,576-byte mebibytes, not decimal SI MB"
+	}
+	if (t == "-a") {
+		return "include entries whose names start with ."
+	}
+	if (t == "-A" || t == "-all") {
+		return "git add -A: stage all worktree changes (new, modified, deleted)"
+	}
+	if (t == "-r" || t == "-R" || t == "--recursive") {
+		return "recurse into directories"
+	}
+	if (t == "-f" || t == "--force") {
+		return "do not prompt; ignore missing files / overwrite"
+	}
+	if (t == "-rf" || t == "-fr") {
+		return "recursive + force delete; no prompt, descends into directories"
+	}
+	if (t == "git") {
+		return "git porcelain; next token is the subcommand"
+	}
+	if (t == "rm") {
+		return "remove files. without -r, directories are refused"
+	}
+	if (t == "cd") {
+		return "change the current working directory of this shell"
+	}
+	if (t == "sudo") {
+		return "run the following command as root (or -u user)"
 	}
 	if (expectCmd && left(tok, 1) != "-") {
-		return "program"
+		return "program to execute (looked up on PATH)"
 	}
 	if (left(tok, 1) == "-") {
-		return "option"
+		return "option/flag passed to the preceding program"
 	}
-	return "argument"
+	return "argument (path, pattern, or value)"
 }
 
 function localParts(command) {
@@ -430,27 +476,74 @@ function localParts(command) {
 	return parts
 }
 
-function teachParts(command, action) {
+function teachPrompt() {
+	return "Explain this shell command to an experienced developer who must decide whether to run it."
+		& " Reply with one JSON object and nothing else:"
+		& " {""summary"":""what the whole pipeline does, side effects, output shape, and the main risk"",""parts"":[{""token"":""exact token from the command"",""meaning"":""2-4 sentences: behavior, defaults, units, and gotchas""}]}"
+		& " Every token must appear, including pipes, quotes, && and flags with their values (e.g. --block-size=M)."
+		& " Be concrete: M vs MB, cwd, overwrite, recursion, exit codes. No markdown."
+}
+
+function asTeach(data) {
+	if (isSimpleValue(data)) {
+		return { parts: [], summary: "" }
+	}
+	if (structKeyExists(data, "parts")) {
+		summary = structKeyExists(data, "summary") ? toString(data.summary) : ""
+		return { parts: data.parts, summary: summary }
+	}
+	try {
+		if (arrayLen(data) > 0) {
+			return { parts: data, summary: "" }
+		}
+	} catch (e) {
+	}
+	return { parts: [], summary: "" }
+}
+
+function teachBundle(command, action) {
 	stub = getSystemSetting("INTERPRET_STUB_TEACH", "")
 	if (stub != "") {
 		try {
-			return deserializeJSON(stub)
+			return asTeach(deserializeJSON(stub))
 		} catch (e) {
 		}
+	}
+	if (structKeyExists(action, "_teach") && !isSimpleValue(action._teach)) {
+		return action._teach
 	}
 	if (structKeyExists(action, "parts") && !isSimpleValue(action.parts)) {
 		try {
 			if (arrayLen(action.parts) > 0) {
-				return action.parts
+				summary = structKeyExists(action, "summary") ? toString(action.summary) : ""
+				return { parts: action.parts, summary: summary }
 			}
 		} catch (e) {
 		}
 	}
-	return localParts(command)
+	got = complete([
+		{ role: "system", content: teachPrompt() },
+		{ role: "user", content: command }
+	])
+	if (got.ok) {
+		blob = jsonObject(got.text)
+		if (blob != "") {
+			try {
+				bundle = asTeach(deserializeJSON(blob))
+				if (arrayLen(bundle.parts) > 0) {
+					action["_teach"] = bundle
+					return bundle
+				}
+			} catch (e) {
+			}
+		}
+	}
+	return { parts: localParts(command), summary: "" }
 }
 
 function printTeach(command, action) {
-	parts = teachParts(command, action)
+	bundle = teachBundle(command, action)
+	parts = bundle.parts
 	width = 4
 	for (p in parts) {
 		tok = structKeyExists(p, "token") ? toString(p.token) : ""
@@ -459,6 +552,10 @@ function printTeach(command, action) {
 		}
 	}
 	println("")
+	if (structKeyExists(bundle, "summary") && trim(bundle.summary) != "") {
+		println(bundle.summary)
+		println("")
+	}
 	for (p in parts) {
 		tok = structKeyExists(p, "token") ? toString(p.token) : ""
 		meaning = structKeyExists(p, "meaning") ? toString(p.meaning) : ""
