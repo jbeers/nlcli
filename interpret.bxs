@@ -102,6 +102,12 @@ function parseAction(text) {
 		}
 		return action
 	}
+	if (action.type == "InspectEnvironment") {
+		if (!structKeyExists(action, "operation") || trim(action.operation) == "") {
+			return failAction("InspectEnvironment missing operation")
+		}
+		return action
+	}
 	return failAction("unsupported action: " & action.type)
 }
 
@@ -171,6 +177,7 @@ function systemPrompt(tool) {
 		& "Reply with a single JSON object and nothing else. No markdown fences. No thinking." & nl
 		& "Honor requested units, flags, and constraints exactly. ls -lh is not megabytes." & nl
 		& "Include riskFactor 0-10 (10 = worst). Use 7+ for delete, overwrite, privilege, or hard-to-undo." & nl
+		& "You may send {""type"":""InspectEnvironment"",""operation"":""command_help"",""arguments"":""ls""} with operation one of get_platform, get_shell, get_cwd, command_exists, command_version, command_help, git_context." & nl
 		& "Prefer a reasonable reversible command over asking." & nl
 		& "Ask only when the target, command, risk, or data would change." & nl
 		& "Do not ask about compression format. Do not ask for permission to run." & nl
@@ -331,15 +338,32 @@ function confirmRun(risky) {
 	while (true) {
 		answer = lcase(trim(cliRead(paint(prompt, risky))))
 		if (answer == "") {
-			return !risky
+			return risky ? "no" : "yes"
 		}
 		if (answer == "y") {
-			return true
+			return "yes"
 		}
 		if (answer == "q" || answer == "n") {
-			return false
+			return "no"
+		}
+		if (answer == "e") {
+			return "edit"
 		}
 	}
+}
+
+function editCommand(command) {
+	editor = getSystemSetting("VISUAL", "")
+	if (editor == "") {
+		editor = getSystemSetting("EDITOR", "vi")
+	}
+	path = getTempDirectory() & "interpret-" & createUUID() & ".sh"
+	fileWrite(path, command)
+	result = systemExecute("sh", ["-c", editor & ' "$1"', "edit", path], 0, false, null, null, null, true, {}, true)
+	if (isNull(result.exitCode) || result.exitCode != 0) {
+		return ""
+	}
+	return trim(fileRead(path))
 }
 
 function runCommand(command) {
@@ -348,6 +372,72 @@ function runCommand(command) {
 		return 1
 	}
 	return result.exitCode
+}
+
+function inspectArg(action) {
+	if (structKeyExists(action, "name") && isSimpleValue(action.name)) {
+		return trim(action.name)
+	}
+	if (!structKeyExists(action, "arguments")) {
+		return ""
+	}
+	a = action.arguments
+	if (isSimpleValue(a)) {
+		return trim(a)
+	}
+	if (structKeyExists(a, "name")) {
+		return trim(a.name)
+	}
+	try {
+		return trim(a[1])
+	} catch (e) {
+		return ""
+	}
+}
+
+function safeBin(name) {
+	if (name == "" || reFind("[^A-Za-z0-9._+-]", name) > 0) {
+		return ""
+	}
+	return name
+}
+
+function runInspect(action) {
+	op = lcase(trim(action.operation))
+	arg = inspectArg(action)
+	if (op == "get_platform") {
+		return { ok: true, operation: op, result: trim(systemExecute("uname", ["-s"]).output) }
+	}
+	if (op == "get_shell") {
+		return { ok: true, operation: op, result: getSystemSetting("SHELL", "") }
+	}
+	if (op == "get_cwd") {
+		return { ok: true, operation: op, result: expandPath(".") }
+	}
+	if (op == "git_context") {
+		return { ok: true, operation: op, result: gitContext() }
+	}
+	bin = safeBin(arg)
+	if (op == "command_exists" || op == "command_version" || op == "command_help") {
+		if (bin == "") {
+			return { ok: false, operation: op, error: "invalid command name" }
+		}
+		flag = (op == "command_exists") ? "" : ((op == "command_version") ? "--version" : "--help")
+		if (op == "command_exists") {
+			r = systemExecute("sh", ["-c", 'command -v "$1"', "sh", bin])
+			return { ok: true, operation: op, result: (!isNull(r.exitCode) && r.exitCode == 0) }
+		}
+		r = systemExecute(bin, [flag])
+		out = ""
+		if (!isNull(r.output)) {
+			out = r.output
+		}
+		if (out == "" && !isNull(r.error)) {
+			out = r.error
+		}
+		return { ok: !isNull(r.exitCode) && r.exitCode == 0, operation: op, result: left(out, 4000) }
+	}
+	return { ok: false, operation: op, error: "not allowlisted" }
 }
 
 function loadStubs() {
@@ -403,8 +493,9 @@ function resolve(request) {
 	]
 	stubs = loadStubs()
 	at = 1
+	inspects = 0
 	turns = 0
-	while (turns < 5) {
+	while (turns < 8) {
 		turns = turns + 1
 		if (at <= arrayLen(stubs)) {
 			action = parseAction(serializeJSON(stubs[at]))
@@ -414,15 +505,23 @@ function resolve(request) {
 		} else {
 			action = chat(messages)
 		}
-		if (action.type != "AskQuestion") {
+		if (action.type == "AskQuestion") {
+			answer = ask(action)
+			if (lcase(trim(answer)) == "cancel") {
+				return failAction("cancelled")
+			}
+			arrayAppend(messages, { role: "assistant", content: serializeJSON(action) })
+			arrayAppend(messages, { role: "user", content: answer })
+		} else if (action.type == "InspectEnvironment") {
+			inspects = inspects + 1
+			if (inspects > 4) {
+				return failAction("too many inspects")
+			}
+			arrayAppend(messages, { role: "assistant", content: serializeJSON(action) })
+			arrayAppend(messages, { role: "user", content: serializeJSON(runInspect(action)) })
+		} else {
 			return action
 		}
-		answer = ask(action)
-		if (lcase(trim(answer)) == "cancel") {
-			return failAction("cancelled")
-		}
-		arrayAppend(messages, { role: "assistant", content: serializeJSON(action) })
-		arrayAppend(messages, { role: "user", content: answer })
 	}
 	return failAction("too many questions")
 }
@@ -446,11 +545,12 @@ function main() {
 		systemOutput(action.message, true, true)
 		cliExit(1)
 	}
-	risk = mergeRisk(action.command, action)
+	command = action.command
+	risk = mergeRisk(command, action)
 	if (!parsed.dryRun) {
 		println("")
 	}
-	println(parsed.dryRun ? action.command : paint(action.command, risk.risky))
+	println(parsed.dryRun ? command : paint(command, risk.risky))
 	if (parsed.dryRun) {
 		cliExit(0)
 	}
@@ -459,13 +559,30 @@ function main() {
 	}
 	if (parsed.yes && !risk.risky) {
 		println("")
-		cliExit(runCommand(action.command))
+		cliExit(runCommand(command))
 	}
-	if (!confirmRun(risk.risky)) {
-		cliExit(1)
+	while (true) {
+		choice = confirmRun(risk.risky)
+		if (choice == "edit") {
+			edited = editCommand(command)
+			if (edited == "") {
+				continue
+			}
+			command = edited
+			risk = mergeRisk(command, {})
+			println("")
+			println(paint(command, risk.risky))
+			if (risk.risky && risk.warning != "") {
+				println(paint("⚠ " & risk.warning, true))
+			}
+			continue
+		}
+		if (choice != "yes") {
+			cliExit(1)
+		}
+		println("")
+		cliExit(runCommand(command))
 	}
-	println("")
-	cliExit(runCommand(action.command))
 }
 
 main()
