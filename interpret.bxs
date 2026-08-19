@@ -1,9 +1,10 @@
 // interpret — NL → shell command. MatchBox runtime.
 
 VERSION = "0.1.0"
+RISK_THRESHOLD = 7
 
 function usage() {
-	systemOutput("usage: interpret [-n|--dry-run] <request>", true, true)
+	systemOutput("usage: interpret [-n|--dry-run] [-y|--yes] <request>", true, true)
 }
 
 function flagOn(options, name) {
@@ -23,6 +24,7 @@ function parseCli(raw) {
 	opt = raw.options
 	parts = []
 	swallowed(opt, "dry-run", parts)
+	swallowed(opt, "yes", parts)
 	for (p in raw.positionals) {
 		arrayAppend(parts, p)
 	}
@@ -30,6 +32,7 @@ function parseCli(raw) {
 		version: flagOn(opt, "interpret-version") || flagOn(opt, "version") || flagOn(opt, "v"),
 		help: flagOn(opt, "interpret-help") || flagOn(opt, "help") || flagOn(opt, "h"),
 		dryRun: flagOn(opt, "n") || flagOn(opt, "dry-run"),
+		yes: flagOn(opt, "y") || flagOn(opt, "yes"),
 		request: arrayToList(parts, " ")
 	}
 }
@@ -167,6 +170,7 @@ function systemPrompt(tool) {
 	prompt = "You convert one user intent into a shell command." & nl
 		& "Reply with a single JSON object and nothing else. No markdown fences. No thinking." & nl
 		& "Honor requested units, flags, and constraints exactly. ls -lh is not megabytes." & nl
+		& "Include riskFactor 0-10 (10 = worst). Use 7+ for delete, overwrite, privilege, or hard-to-undo." & nl
 		& "Prefer a reasonable reversible command over asking." & nl
 		& "Ask only when the target, command, risk, or data would change." & nl
 		& "Do not ask about compression format. Do not ask for permission to run." & nl
@@ -174,7 +178,7 @@ function systemPrompt(tool) {
 	if (tool != "") {
 		prompt = prompt & "Use only this tool: " & tool & "." & nl
 	}
-	execEx = serializeJSON({ type: "ExecuteCommand", command: "ls -l --block-size=M", explanation: "sizes in megabytes", risk: ["READ"] })
+	execEx = serializeJSON({ type: "ExecuteCommand", command: "ls -l --block-size=M", explanation: "sizes in megabytes", risk: ["READ"], riskFactor: 1 })
 	duEx = serializeJSON({ type: "ExecuteCommand", command: "du -ah . | sort -hr | head -10", explanation: "ten largest files", risk: ["READ"] })
 	askEx = serializeJSON({ type: "AskQuestion", question: "What should be reset?", choices: ["Working tree", "Last commit"] })
 	prompt = prompt & nl
@@ -240,14 +244,96 @@ function messageText(message) {
 	return text
 }
 
-function green(text) {
-	return chr(27) & "[32m" & text & chr(27) & "[0m"
+function paint(text, risky) {
+	code = risky ? "31" : "32"
+	return chr(27) & "[" & code & "m" & text & chr(27) & "[0m"
 }
 
-function confirmRun() {
+function tagHas(tags, name) {
+	for (t in tags) {
+		if (uCase(trim(t)) == name) {
+			return true
+		}
+	}
+	return false
+}
+
+function addTag(tags, name) {
+	if (!tagHas(tags, name)) {
+		arrayAppend(tags, name)
+	}
+}
+
+function detectRisk(command) {
+	tags = []
+	warn = ""
+	if (reFindNoCase("(^|[|;[:space:]])rm[[:space:]]+(-[A-Za-z]*r|--recursive)", command) > 0) {
+		addTag(tags, "DESTRUCTIVE")
+		warn = "Recursive delete."
+	}
+	if (findNoCase("git reset --hard", command) > 0) {
+		addTag(tags, "DESTRUCTIVE")
+		warn = "Discards commits and working-tree changes."
+	}
+	if (findNoCase("git clean", command) > 0) {
+		addTag(tags, "DESTRUCTIVE")
+		warn = "Deletes untracked files and directories."
+	}
+	if (findNoCase("git push --force", command) > 0 || findNoCase("git push -f", command) > 0) {
+		addTag(tags, "DESTRUCTIVE")
+		warn = "Overwrites remote history."
+	}
+	if (findNoCase("mkfs", command) > 0 || findNoCase("fdisk", command) > 0 || findNoCase("wipefs", command) > 0) {
+		addTag(tags, "DESTRUCTIVE")
+		warn = "Formats or rewrites a filesystem."
+	}
+	if (reFindNoCase("(^|[|;[:space:]])dd[[:space:]]", command) > 0) {
+		addTag(tags, "DESTRUCTIVE")
+		warn = "Low-level disk write."
+	}
+	if (findNoCase("drop table", command) > 0 || findNoCase("drop database", command) > 0 || findNoCase("truncate ", command) > 0) {
+		addTag(tags, "DESTRUCTIVE")
+		warn = "Destructive database operation."
+	}
+	if (reFindNoCase("(^|[|;[:space:]])sudo[[:space:]]", command) > 0) {
+		addTag(tags, "PRIVILEGED")
+		if (warn == "") {
+			warn = "Privileged command."
+		}
+	}
+	return { tags: tags, warning: warn }
+}
+
+function mergeRisk(command, action) {
+	detected = detectRisk(command)
+	tags = detected.tags
+	if (structKeyExists(action, "risk") && !isNull(action.risk) && !isSimpleValue(action.risk)) {
+		for (t in action.risk) {
+			addTag(tags, uCase(trim(t)))
+		}
+	} else if (structKeyExists(action, "risk") && isSimpleValue(action.risk) && action.risk != false && action.risk != true) {
+		addTag(tags, uCase(trim(action.risk)))
+	}
+	factor = 0
+	if (structKeyExists(action, "riskFactor") && isNumeric(action.riskFactor)) {
+		factor = action.riskFactor
+	}
+	risky = tagHas(tags, "DESTRUCTIVE") || tagHas(tags, "PRIVILEGED") || factor >= RISK_THRESHOLD
+	warn = detected.warning
+	if (risky && warn == "") {
+		warn = (factor >= RISK_THRESHOLD) ? ("Model riskFactor " & factor & "/10.") : "Dangerous command."
+	}
+	return { tags: tags, risky: risky, warning: warn, factor: factor }
+}
+
+function confirmRun(risky) {
+	prompt = risky ? "Run? [y/N/e/?] " : "Run? [Enter/e/q] "
 	while (true) {
-		answer = lcase(trim(cliRead(green("Run? [Enter/e/q] "))))
-		if (answer == "" || answer == "y") {
+		answer = lcase(trim(cliRead(paint(prompt, risky))))
+		if (answer == "") {
+			return !risky
+		}
+		if (answer == "y") {
 			return true
 		}
 		if (answer == "q" || answer == "n") {
@@ -306,7 +392,8 @@ function resolve(request) {
 		type: "ExecuteCommand",
 		command: "ls -l --block-size=M",
 		explanation: "sizes in megabytes",
-		risk: ["READ"]
+		risk: ["READ"],
+		riskFactor: 1
 	})
 	messages = [
 		{ role: "system", content: systemPrompt(hint.tool) },
@@ -359,14 +446,22 @@ function main() {
 		systemOutput(action.message, true, true)
 		cliExit(1)
 	}
+	risk = mergeRisk(action.command, action)
 	if (!parsed.dryRun) {
 		println("")
 	}
-	println(parsed.dryRun ? action.command : green(action.command))
+	println(parsed.dryRun ? action.command : paint(action.command, risk.risky))
 	if (parsed.dryRun) {
 		cliExit(0)
 	}
-	if (!confirmRun()) {
+	if (risk.risky && risk.warning != "") {
+		println(paint("⚠ " & risk.warning, true))
+	}
+	if (parsed.yes && !risk.risky) {
+		println("")
+		cliExit(runCommand(action.command))
+	}
+	if (!confirmRun(risk.risky)) {
 		cliExit(1)
 	}
 	println("")
