@@ -336,8 +336,143 @@ function mergeRisk(command, action) {
 	return { tags: tags, risky: risky, warning: warn, factor: factor }
 }
 
-function confirmRun(risky) {
-	prompt = risky ? "Run? [y/N/e/?] " : "Run? [Enter/e/q] "
+function tokenizeCommand(command) {
+	tokens = []
+	buf = ""
+	quote = ""
+	i = 1
+	n = len(command)
+	while (i <= n) {
+		ch = mid(command, i, 1)
+		two = (i < n) ? mid(command, i, 2) : ""
+		if (quote == "") {
+			if (ch == "'" || ch == '"') {
+				quote = ch
+				buf = buf & ch
+				i = i + 1
+				continue
+			}
+			if (two == "&&" || two == "||") {
+				if (buf != "") {
+					arrayAppend(tokens, buf)
+					buf = ""
+				}
+				arrayAppend(tokens, two)
+				i = i + 2
+				continue
+			}
+			if (ch == "|" || ch == ";") {
+				if (buf != "") {
+					arrayAppend(tokens, buf)
+					buf = ""
+				}
+				arrayAppend(tokens, ch)
+				i = i + 1
+				continue
+			}
+			if (ch == " " || ch == chr(9)) {
+				if (buf != "") {
+					arrayAppend(tokens, buf)
+					buf = ""
+				}
+				i = i + 1
+				continue
+			}
+		} else if (ch == quote) {
+			buf = buf & ch
+			quote = ""
+			i = i + 1
+			continue
+		}
+		buf = buf & ch
+		i = i + 1
+	}
+	if (buf != "") {
+		arrayAppend(tokens, buf)
+	}
+	return tokens
+}
+
+function tokenMeaning(tok, expectCmd) {
+	t = lcase(tok)
+	if (t == "&&") {
+		return "run next only if previous succeeds"
+	}
+	if (t == "||") {
+		return "run next only if previous fails"
+	}
+	if (t == "|") {
+		return "pipe stdout into the next command"
+	}
+	if (t == ";") {
+		return "run next regardless of previous status"
+	}
+	if (expectCmd && left(tok, 1) != "-") {
+		return "program"
+	}
+	if (left(tok, 1) == "-") {
+		return "option"
+	}
+	return "argument"
+}
+
+function localParts(command) {
+	parts = []
+	expectCmd = true
+	for (tok in tokenizeCommand(command)) {
+		arrayAppend(parts, { token: tok, meaning: tokenMeaning(tok, expectCmd) })
+		if (tok == "|" || tok == "&&" || tok == "||" || tok == ";") {
+			expectCmd = true
+		} else if (expectCmd && left(tok, 1) != "-") {
+			expectCmd = false
+		}
+	}
+	return parts
+}
+
+function teachParts(command, action) {
+	stub = getSystemSetting("INTERPRET_STUB_TEACH", "")
+	if (stub != "") {
+		try {
+			return deserializeJSON(stub)
+		} catch (e) {
+		}
+	}
+	if (structKeyExists(action, "parts") && !isSimpleValue(action.parts)) {
+		try {
+			if (arrayLen(action.parts) > 0) {
+				return action.parts
+			}
+		} catch (e) {
+		}
+	}
+	return localParts(command)
+}
+
+function printTeach(command, action) {
+	parts = teachParts(command, action)
+	width = 4
+	for (p in parts) {
+		tok = structKeyExists(p, "token") ? toString(p.token) : ""
+		if (len(tok) > width) {
+			width = len(tok)
+		}
+	}
+	println("")
+	for (p in parts) {
+		tok = structKeyExists(p, "token") ? toString(p.token) : ""
+		meaning = structKeyExists(p, "meaning") ? toString(p.meaning) : ""
+		pad = tok
+		while (len(pad) < width) {
+			pad = pad & " "
+		}
+		println("  " & pad & "  " & meaning)
+	}
+	println("")
+}
+
+function confirmRun(risky, command, action) {
+	prompt = risky ? "Run? [y/N/e/?/t] " : "Run? [Enter/e/q/t] "
 	while (true) {
 		answer = lcase(trim(cliRead(paint(prompt, risky))))
 		if (answer == "") {
@@ -354,6 +489,9 @@ function confirmRun(risky) {
 		}
 		if (answer == "?") {
 			return "explain"
+		}
+		if (answer == "t") {
+			printTeach(command, action)
 		}
 	}
 }
@@ -736,7 +874,7 @@ function main() {
 		ran = emitOrRun(command)
 	} else {
 		while (true) {
-			choice = confirmRun(risk.risky)
+			choice = confirmRun(risk.risky, command, action)
 			if (choice == "explain") {
 				showExplanation(action)
 				continue
@@ -783,7 +921,7 @@ function main() {
 			if (risk.risky && risk.warning != "") {
 				println(paint("⚠ " & risk.warning, true))
 			}
-			choice = confirmRun(risk.risky)
+			choice = confirmRun(risk.risky, command, action)
 			if (choice == "yes") {
 				println("")
 				ran = emitOrRun(command)
@@ -795,7 +933,7 @@ function main() {
 				command = edited
 				println("")
 				println(paint(command, mergeRisk(command, {}).risky))
-				choice = confirmRun(mergeRisk(command, {}).risky)
+				choice = confirmRun(mergeRisk(command, {}).risky, command, action)
 				if (choice == "yes") {
 					println("")
 					ran = emitOrRun(command)
