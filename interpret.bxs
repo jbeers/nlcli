@@ -372,6 +372,15 @@ function editCommand(command) {
 	return trim(fileRead(path))
 }
 
+function emitOrRun(command) {
+	dest = getSystemSetting("INTERPRET_EMIT", "")
+	if (dest != "") {
+		fileWrite(dest, command & chr(10))
+		return { exitCode: 0, output: "", error: "" }
+	}
+	return runCommand(command)
+}
+
 function runCommand(command) {
 	result = systemExecute("sh", ["-c", command])
 	out = ""
@@ -724,7 +733,7 @@ function main() {
 	ran = { exitCode: 1, output: "", error: "" }
 	if (parsed.yes && !risk.risky) {
 		println("")
-		ran = runCommand(command)
+		ran = emitOrRun(command)
 	} else {
 		while (true) {
 			choice = confirmRun(risk.risky)
@@ -750,7 +759,7 @@ function main() {
 				cliExit(1)
 			}
 			println("")
-			ran = runCommand(command)
+			ran = emitOrRun(command)
 			break
 		}
 	}
@@ -777,7 +786,7 @@ function main() {
 			choice = confirmRun(risk.risky)
 			if (choice == "yes") {
 				println("")
-				ran = runCommand(command)
+				ran = emitOrRun(command)
 				historyAppend(parsed.request, command, ran.exitCode)
 			}
 		} else if (fix == "e") {
@@ -789,7 +798,7 @@ function main() {
 				choice = confirmRun(mergeRisk(command, {}).risky)
 				if (choice == "yes") {
 					println("")
-					ran = runCommand(command)
+					ran = emitOrRun(command)
 					historyAppend(parsed.request, command, ran.exitCode)
 				}
 			}
