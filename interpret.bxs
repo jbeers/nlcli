@@ -4,7 +4,7 @@ VERSION = "0.1.0"
 RISK_THRESHOLD = 7
 
 function usage() {
-	systemOutput("usage: interpret [-n|--dry-run] [-y|--yes] <request>", true, true)
+	systemOutput("usage: interpret [-n|--dry-run] [-y|--yes] [-e|--explain] [--history] <request>", true, true)
 }
 
 function flagOn(options, name) {
@@ -25,6 +25,7 @@ function parseCli(raw) {
 	parts = []
 	swallowed(opt, "dry-run", parts)
 	swallowed(opt, "yes", parts)
+	swallowed(opt, "explain", parts)
 	for (p in raw.positionals) {
 		arrayAppend(parts, p)
 	}
@@ -33,6 +34,8 @@ function parseCli(raw) {
 		help: flagOn(opt, "interpret-help") || flagOn(opt, "help") || flagOn(opt, "h"),
 		dryRun: flagOn(opt, "n") || flagOn(opt, "dry-run"),
 		yes: flagOn(opt, "y") || flagOn(opt, "yes"),
+		explain: flagOn(opt, "e") || flagOn(opt, "explain"),
+		history: flagOn(opt, "history"),
 		request: arrayToList(parts, " ")
 	}
 }
@@ -98,7 +101,7 @@ function parseAction(text) {
 			action.question = "Choose:"
 		}
 		if (!structKeyExists(action, "choices")) {
-			return failAction("AskQuestion missing choices")
+			action.choices = []
 		}
 		return action
 	}
@@ -349,6 +352,9 @@ function confirmRun(risky) {
 		if (answer == "e") {
 			return "edit"
 		}
+		if (answer == "?") {
+			return "explain"
+		}
 	}
 }
 
@@ -367,11 +373,107 @@ function editCommand(command) {
 }
 
 function runCommand(command) {
-	result = systemExecute("sh", ["-c", command], 0, false, null, null, null, true, {}, true)
-	if (isNull(result.exitCode)) {
-		return 1
+	result = systemExecute("sh", ["-c", command])
+	out = ""
+	err = ""
+	if (!isNull(result.output)) {
+		out = result.output
 	}
-	return result.exitCode
+	if (!isNull(result.error)) {
+		err = result.error
+	}
+	if (out != "") {
+		systemOutput(out, right(out, 1) != chr(10), false)
+	}
+	if (err != "") {
+		systemOutput(err, right(err, 1) != chr(10), true)
+	}
+	code = isNull(result.exitCode) ? 1 : result.exitCode
+	return { exitCode: code, output: out, error: err }
+}
+
+function showExplanation(action) {
+	text = ""
+	if (structKeyExists(action, "explanation") && !isNull(action.explanation)) {
+		text = trim(action.explanation)
+	}
+	if (text == "") {
+		text = "(no explanation)"
+	}
+	println(text)
+}
+
+function historyFile() {
+	dir = getSystemSetting("INTERPRET_HOME", "")
+	if (dir == "") {
+		dir = getSystemSetting("HOME", "/tmp") & "/.interpret"
+	}
+	if (!directoryExists(dir)) {
+		directoryCreate(dir)
+	}
+	return dir & "/history.jsonl"
+}
+
+function historyAppend(request, command, code) {
+	try {
+		path = historyFile()
+		id = 1
+		if (fileExists(path)) {
+			existing = fileRead(path)
+			id = listLen(existing, chr(10)) + 1
+		}
+		rec = serializeJSON({
+			id: id,
+			time: toString(now()),
+			cwd: expandPath("."),
+			request: request,
+			command: command,
+			exit: code
+		})
+		fileAppend(path, rec & chr(10))
+	} catch (e) {
+	}
+}
+
+function historyShow() {
+	path = historyFile()
+	if (!fileExists(path)) {
+		return
+	}
+	raw = fileRead(path)
+	n = listLen(raw, chr(10))
+	i = n
+	while (i >= 1) {
+		line = trim(listGetAt(raw, i, chr(10)))
+		i = i - 1
+		if (line == "") {
+			continue
+		}
+		try {
+			rec = deserializeJSON(line)
+			println(rec.id & "  " & rec.request)
+			println("    " & rec.command)
+		} catch (e) {
+		}
+	}
+}
+
+function repairCommand(intent, command, ran) {
+	stub = getSystemSetting("INTERPRET_STUB_REPAIR", "")
+	if (stub != "") {
+		return parseAction(stub)
+	}
+	note = "The command failed. Propose a repaired ExecuteCommand JSON."
+		& " exit=" & ran.exitCode
+		& " stdout=" & left(ran.output, 2000)
+		& " stderr=" & left(ran.error, 2000)
+		& " Ambient: " & ambient()
+	return chat([
+		{ role: "system", content: systemPrompt("") },
+		{ role: "user", content: intent },
+		{ role: "assistant", content: serializeJSON({ type: "ExecuteCommand", command: command }) },
+		{ role: "user", content: note }
+	])
 }
 
 function inspectArg(action) {
@@ -452,10 +554,34 @@ function loadStubs() {
 	return []
 }
 
+function questionKind(action) {
+	if (structKeyExists(action, "questionType")) {
+		return lcase(trim(action.questionType))
+	}
+	if (structKeyExists(action, "kind")) {
+		return lcase(trim(action.kind))
+	}
+	return ""
+}
+
 function ask(action) {
+	stub = getSystemSetting("INTERPRET_STUB_ANSWER", "")
+	kind = questionKind(action)
+	free = kind == "freetext" || kind == "free" || kind == "text" || arrayLen(action.choices) == 0
+	if (free) {
+		if (stub != "") {
+			return stub
+		}
+		line = trim(cliRead(action.question & " "))
+		return (line == "") ? "cancel" : line
+	}
 	choices = []
+	allowOther = (structKeyExists(action, "allow_other") && action.allow_other) || (structKeyExists(action, "allowOther") && action.allowOther)
 	for (c in action.choices) {
 		arrayAppend(choices, c)
+		if (lcase(trim(c)) == "other" || lcase(trim(c)) == "other…" || lcase(trim(c)) == "other...") {
+			allowOther = true
+		}
 	}
 	hasCancel = false
 	for (c in choices) {
@@ -466,11 +592,26 @@ function ask(action) {
 	if (!hasCancel) {
 		arrayAppend(choices, "Cancel")
 	}
-	stub = getSystemSetting("INTERPRET_STUB_ANSWER", "")
+	if (allowOther) {
+		hasOther = false
+		for (c in choices) {
+			if (lcase(left(trim(c), 5)) == "other") {
+				hasOther = true
+			}
+		}
+		if (!hasOther) {
+			arrayAppend(choices, "Other…")
+		}
+	}
 	if (stub != "") {
 		return stub
 	}
-	return cliSelect(action.question, choices)
+	picked = cliSelect(action.question, choices)
+	if (lcase(left(trim(picked), 5)) == "other") {
+		line = trim(cliRead("> "))
+		return (line == "") ? "cancel" : line
+	}
+	return picked
 }
 
 function resolve(request) {
@@ -552,6 +693,10 @@ function main() {
 		usage()
 		cliExit(0)
 	}
+	if (parsed.history) {
+		historyShow()
+		cliExit(0)
+	}
 	if (trim(parsed.request) == "") {
 		usage()
 		cliExit(2)
@@ -567,38 +712,90 @@ function main() {
 		println("")
 	}
 	println(parsed.dryRun ? command : paint(command, risk.risky))
+	if (parsed.explain) {
+		showExplanation(action)
+	}
 	if (parsed.dryRun) {
 		cliExit(0)
 	}
 	if (risk.risky && risk.warning != "") {
 		println(paint("⚠ " & risk.warning, true))
 	}
+	ran = { exitCode: 1, output: "", error: "" }
 	if (parsed.yes && !risk.risky) {
 		println("")
-		cliExit(runCommand(command))
-	}
-	while (true) {
-		choice = confirmRun(risk.risky)
-		if (choice == "edit") {
-			edited = editCommand(command)
-			if (edited == "") {
+		ran = runCommand(command)
+	} else {
+		while (true) {
+			choice = confirmRun(risk.risky)
+			if (choice == "explain") {
+				showExplanation(action)
 				continue
 			}
-			command = edited
-			risk = mergeRisk(command, {})
+			if (choice == "edit") {
+				edited = editCommand(command)
+				if (edited == "") {
+					continue
+				}
+				command = edited
+				risk = mergeRisk(command, {})
+				println("")
+				println(paint(command, risk.risky))
+				if (risk.risky && risk.warning != "") {
+					println(paint("⚠ " & risk.warning, true))
+				}
+				continue
+			}
+			if (choice != "yes") {
+				cliExit(1)
+			}
+			println("")
+			ran = runCommand(command)
+			break
+		}
+	}
+	historyAppend(parsed.request, command, ran.exitCode)
+	if (ran.exitCode != 0) {
+		fix = lcase(trim(cliRead("[r] Repair  [e] Edit  [q] Quit ")))
+		if (fix == "r") {
+			repaired = repairCommand(parsed.request, command, ran)
+			if (repaired.type != "ExecuteCommand") {
+				systemOutput(repaired.message, true, true)
+				cliExit(1)
+			}
+			command = repaired.command
+			action = repaired
+			risk = mergeRisk(command, action)
 			println("")
 			println(paint(command, risk.risky))
+			if (parsed.explain) {
+				showExplanation(action)
+			}
 			if (risk.risky && risk.warning != "") {
 				println(paint("⚠ " & risk.warning, true))
 			}
-			continue
+			choice = confirmRun(risk.risky)
+			if (choice == "yes") {
+				println("")
+				ran = runCommand(command)
+				historyAppend(parsed.request, command, ran.exitCode)
+			}
+		} else if (fix == "e") {
+			edited = editCommand(command)
+			if (edited != "") {
+				command = edited
+				println("")
+				println(paint(command, mergeRisk(command, {}).risky))
+				choice = confirmRun(mergeRisk(command, {}).risky)
+				if (choice == "yes") {
+					println("")
+					ran = runCommand(command)
+					historyAppend(parsed.request, command, ran.exitCode)
+				}
+			}
 		}
-		if (choice != "yes") {
-			cliExit(1)
-		}
-		println("")
-		cliExit(runCommand(command))
 	}
+	cliExit(ran.exitCode)
 }
 
 main()
