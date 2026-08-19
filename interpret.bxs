@@ -1,0 +1,376 @@
+// interpret — NL → shell command. MatchBox runtime.
+
+VERSION = "0.1.0"
+
+function usage() {
+	systemOutput("usage: interpret [-n|--dry-run] <request>", true, true)
+}
+
+function flagOn(options, name) {
+	if (!structKeyExists(options, name) || options[name] == false) {
+		return false
+	}
+	return true
+}
+
+function swallowed(options, name, parts) {
+	if (structKeyExists(options, name) && !isBoolean(options[name])) {
+		arrayAppend(parts, options[name])
+	}
+}
+
+function parseCli(raw) {
+	opt = raw.options
+	parts = []
+	swallowed(opt, "dry-run", parts)
+	for (p in raw.positionals) {
+		arrayAppend(parts, p)
+	}
+	return {
+		version: flagOn(opt, "interpret-version") || flagOn(opt, "version") || flagOn(opt, "v"),
+		help: flagOn(opt, "interpret-help") || flagOn(opt, "help") || flagOn(opt, "h"),
+		dryRun: flagOn(opt, "n") || flagOn(opt, "dry-run"),
+		request: arrayToList(parts, " ")
+	}
+}
+
+function jsonObject(text) {
+	start = find("{", text)
+	if (start < 1) {
+		return ""
+	}
+	last = 0
+	i = len(text)
+	while (i >= start) {
+		if (mid(text, i, 1) == "}") {
+			last = i
+			break
+		}
+		i = i - 1
+	}
+	if (last < 1) {
+		return ""
+	}
+	return mid(text, start, last - start + 1)
+}
+
+function failAction(message) {
+	return { type: "Fail", message: message }
+}
+
+function parseAction(text) {
+	blob = jsonObject(text)
+	if (blob == "") {
+		snippet = trim(left(text, 200))
+		if (snippet == "") {
+			return failAction("model did not return JSON (empty content)")
+		}
+		return failAction("model did not return JSON: " & snippet)
+	}
+	try {
+		action = deserializeJSON(blob)
+	} catch (e) {
+		return failAction("model returned invalid JSON: " & left(blob, 240))
+	}
+	if (!structKeyExists(action, "type") && structKeyExists(action, "command")) {
+		action.type = "ExecuteCommand"
+	}
+	if (!structKeyExists(action, "type")) {
+		return failAction("model response missing type")
+	}
+	if (action.type == "ExecuteCommand") {
+		if (!structKeyExists(action, "command") || trim(action.command) == "") {
+			return failAction("model returned an empty command")
+		}
+		return action
+	}
+	if (action.type == "Fail") {
+		if (!structKeyExists(action, "message") || trim(action.message) == "") {
+			action.message = "failed"
+		}
+		return action
+	}
+	if (action.type == "AskQuestion") {
+		if (!structKeyExists(action, "question") || trim(action.question) == "") {
+			action.question = "Choose:"
+		}
+		if (!structKeyExists(action, "choices")) {
+			return failAction("AskQuestion missing choices")
+		}
+		return action
+	}
+	return failAction("unsupported action: " & action.type)
+}
+
+function modelName() {
+	name = getSystemSetting("INTERPRET_MODEL", "")
+	if (name == "") {
+		name = getSystemSetting("OPENAI_MODEL", "gpt-4o-mini")
+	}
+	return name
+}
+
+function apiKey() {
+	key = getSystemSetting("INTERPRET_API_KEY", "")
+	if (key == "") {
+		key = getSystemSetting("OPENAI_API_KEY", "")
+	}
+	return key
+}
+
+function endpoint() {
+	base = getSystemSetting("INTERPRET_BASE_URL", "")
+	if (base == "") {
+		base = getSystemSetting("OPENAI_BASE_URL", "https://api.openai.com/v1")
+	}
+	if (right(base, 1) == "/") {
+		base = left(base, len(base) - 1)
+	}
+	if (findNoCase("chat/completions", base) > 0 || findNoCase("/responses", base) > 0) {
+		return base
+	}
+	return base & "/chat/completions"
+}
+
+function parseHint(request) {
+	colon = find(":", request)
+	if (colon > 1) {
+		next = (colon < len(request)) ? mid(request, colon + 1, 1) : " "
+		tool = trim(left(request, colon - 1))
+		if (next == " " && tool != "" && find(" ", tool) < 1 && len(tool) < 40) {
+			return { tool: tool, request: trim(mid(request, colon + 1, len(request))) }
+		}
+	}
+	return { tool: "", request: request }
+}
+
+function gitContext() {
+	inside = systemExecute("git", ["rev-parse", "--is-inside-work-tree"])
+	if (isNull(inside.exitCode) || inside.exitCode != 0 || trim(inside.output) != "true") {
+		return ""
+	}
+	branch = trim(systemExecute("git", ["branch", "--show-current"]).output)
+	status = trim(systemExecute("git", ["status", "-sb"]).output)
+	return "git.repo=yes git.branch=" & branch & " git.status=" & status
+}
+
+function ambient() {
+	return "os=" & trim(systemExecute("uname", ["-s"]).output)
+		& " shell=" & getSystemSetting("SHELL", "")
+		& " user=" & getSystemSetting("USER", "")
+		& " cwd=" & expandPath(".")
+		& " " & gitContext()
+}
+
+function systemPrompt(tool) {
+	nl = chr(10)
+	prompt = "You convert one user intent into a shell command." & nl
+		& "Reply with a single JSON object and nothing else. No markdown fences. No thinking." & nl
+		& "Honor requested units, flags, and constraints exactly. ls -lh is not megabytes." & nl
+		& "Prefer a reasonable reversible command over asking." & nl
+		& "Ask only when the target, command, risk, or data would change." & nl
+		& "Do not ask about compression format. Do not ask for permission to run." & nl
+		& "Ambient: " & ambient() & nl
+	if (tool != "") {
+		prompt = prompt & "Use only this tool: " & tool & "." & nl
+	}
+	execEx = serializeJSON({ type: "ExecuteCommand", command: "ls -l --block-size=M", explanation: "sizes in megabytes", risk: ["READ"] })
+	duEx = serializeJSON({ type: "ExecuteCommand", command: "du -ah . | sort -hr | head -10", explanation: "ten largest files", risk: ["READ"] })
+	askEx = serializeJSON({ type: "AskQuestion", question: "What should be reset?", choices: ["Working tree", "Last commit"] })
+	prompt = prompt & nl
+		& "Format examples:" & nl
+		& "User: ls with file size in mb" & nl & execEx & nl
+		& "User: show the ten largest files here" & nl & duEx & nl
+		& "User: reset my git changes" & nl & askEx & nl
+		& "Your reply must start with { and end with }."
+	return prompt
+}
+
+function chat(messages) {
+	body = serializeJSON({
+		model: modelName(),
+		temperature: 0,
+		messages: messages
+	})
+	headers = { "Content-Type": "application/json" }
+	key = apiKey()
+	if (key != "") {
+		headers["Authorization"] = "Bearer " & key
+	}
+	httpResult = {}
+	try {
+		httpResult = http({
+			url: endpoint(),
+			method: "POST",
+			headers: headers,
+			body: body
+		})
+	} catch (e) {
+		return failAction("LLM request failed: " & e.message)
+	}
+	if (httpResult.status < 200 || httpResult.status >= 300) {
+		return failAction("LLM request failed: " & httpResult.file_content)
+	}
+	try {
+		resp = deserializeJSON(httpResult.file_content)
+	} catch (e) {
+		return failAction("LLM returned non-JSON")
+	}
+	if (structKeyExists(resp, "error")) {
+		msg = serializeJSON(resp.error)
+		if (structKeyExists(resp.error, "message")) {
+			msg = resp.error.message
+		}
+		return failAction(msg)
+	}
+	if (!structKeyExists(resp, "choices") || arrayLen(resp.choices) < 1) {
+		return failAction("LLM returned no choices")
+	}
+	return parseAction(messageText(resp.choices[1].message))
+}
+
+function messageText(message) {
+	text = ""
+	if (structKeyExists(message, "content") && !isNull(message.content)) {
+		text = message.content
+	}
+	if (find("{", text) < 1 && structKeyExists(message, "reasoning_content") && !isNull(message.reasoning_content)) {
+		text = message.reasoning_content
+	}
+	return text
+}
+
+function green(text) {
+	return chr(27) & "[32m" & text & chr(27) & "[0m"
+}
+
+function confirmRun() {
+	while (true) {
+		answer = lcase(trim(cliRead(green("Run? [Enter/e/q] "))))
+		if (answer == "" || answer == "y") {
+			return true
+		}
+		if (answer == "q" || answer == "n") {
+			return false
+		}
+	}
+}
+
+function runCommand(command) {
+	result = systemExecute("sh", ["-c", command], 0, false, null, null, null, true, {}, true)
+	if (isNull(result.exitCode)) {
+		return 1
+	}
+	return result.exitCode
+}
+
+function loadStubs() {
+	many = getSystemSetting("INTERPRET_STUB_ACTIONS", "")
+	if (many != "") {
+		return deserializeJSON(many)
+	}
+	one = getSystemSetting("INTERPRET_STUB_ACTION", "")
+	if (one != "") {
+		return [deserializeJSON(one)]
+	}
+	return []
+}
+
+function ask(action) {
+	choices = []
+	for (c in action.choices) {
+		arrayAppend(choices, c)
+	}
+	hasCancel = false
+	for (c in choices) {
+		if (lcase(trim(c)) == "cancel") {
+			hasCancel = true
+		}
+	}
+	if (!hasCancel) {
+		arrayAppend(choices, "Cancel")
+	}
+	stub = getSystemSetting("INTERPRET_STUB_ANSWER", "")
+	if (stub != "") {
+		return stub
+	}
+	return cliSelect(action.question, choices)
+}
+
+function resolve(request) {
+	hint = parseHint(request)
+	if (getSystemSetting("INTERPRET_DUMP_CONTEXT", "") != "") {
+		systemOutput(ambient(), true, true)
+	}
+	example = serializeJSON({
+		type: "ExecuteCommand",
+		command: "ls -l --block-size=M",
+		explanation: "sizes in megabytes",
+		risk: ["READ"]
+	})
+	messages = [
+		{ role: "system", content: systemPrompt(hint.tool) },
+		{ role: "user", content: "ls with file size in mb" },
+		{ role: "assistant", content: example },
+		{ role: "user", content: hint.request }
+	]
+	stubs = loadStubs()
+	at = 1
+	turns = 0
+	while (turns < 5) {
+		turns = turns + 1
+		if (at <= arrayLen(stubs)) {
+			action = parseAction(serializeJSON(stubs[at]))
+			at = at + 1
+		} else if (arrayLen(stubs) > 0) {
+			return failAction("no more stub actions")
+		} else {
+			action = chat(messages)
+		}
+		if (action.type != "AskQuestion") {
+			return action
+		}
+		answer = ask(action)
+		if (lcase(trim(answer)) == "cancel") {
+			return failAction("cancelled")
+		}
+		arrayAppend(messages, { role: "assistant", content: serializeJSON(action) })
+		arrayAppend(messages, { role: "user", content: answer })
+	}
+	return failAction("too many questions")
+}
+
+function main() {
+	parsed = parseCli(cliGetArgs())
+	if (parsed.version) {
+		println("interpret " & VERSION)
+		cliExit(0)
+	}
+	if (parsed.help) {
+		usage()
+		cliExit(0)
+	}
+	if (trim(parsed.request) == "") {
+		usage()
+		cliExit(2)
+	}
+	action = resolve(parsed.request)
+	if (action.type != "ExecuteCommand") {
+		systemOutput(action.message, true, true)
+		cliExit(1)
+	}
+	if (!parsed.dryRun) {
+		println("")
+	}
+	println(parsed.dryRun ? action.command : green(action.command))
+	if (parsed.dryRun) {
+		cliExit(0)
+	}
+	if (!confirmRun()) {
+		cliExit(1)
+	}
+	println("")
+	cliExit(runCommand(action.command))
+}
+
+main()

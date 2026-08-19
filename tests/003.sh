@@ -1,0 +1,26 @@
+#!/bin/bash
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+# shellcheck disable=SC1091
+. "$root/at.bash"
+fail=0
+
+check() {
+	name=$1
+	shift
+	if "$@"; then
+		echo "ok $name"
+	else
+		echo "FAIL $name"
+		fail=$((fail + 1))
+	fi
+}
+
+out=$(INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"du -h"}' @ -n "show sizes")
+check at-alias test "$out" = "du -h"
+
+if [ "$fail" -ne 0 ]; then
+	echo "$fail failed"
+	exit 1
+fi
+echo "all passed"
