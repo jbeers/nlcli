@@ -4,7 +4,7 @@
 
 ## What to build
 
-`@` must run the approved script in the current shell so `cd`, `export`, `source`, PATH changes persist. `interpret` as a child process still cannot mutate the parent; that limitation stays documented.
+`@` must run the approved script in the current shell so `cd`, `export`, `source`, PATH changes persist. `nlcli` as a child process still cannot mutate the parent; that limitation stays documented.
 
 Bash only. Preview and safety still wrap execution.
 
@@ -12,7 +12,7 @@ Bash only. Preview and safety still wrap execution.
 
 - [ ] `@ go to the parent directory` after approve changes the user's cwd
 - [ ] `@ set JAVA_HOME to Java 21` after approve persists in that shell (or a documented equivalent env assignment)
-- [ ] Bare `interpret …` still cannot change the caller's cwd
+- [ ] Bare `nlcli …` still cannot change the caller's cwd
 - [ ] Command still previews and passes the safety gate
 
 ## Blocked by

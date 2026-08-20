@@ -2,11 +2,11 @@
 
 ## 1. Overview
 
-### Working Name
+### Name
 
-**Interpret**
+**nlcli**
 
-The final product name is not decided. The implementation should use a conventional executable name such as `interpret`, while the primary interactive shell interface should be a short punctuation alias, preferably:
+The conventional executable is `nlcli`, while the primary interactive shell interface is the short punctuation alias:
 
 ```bash
 @ <natural language request>
@@ -18,23 +18,23 @@ Example:
 @ git commit everything with message "this is my first commit"
 ```
 
-Interpret resolves the request into:
+nlcli resolves the request into:
 
 ```bash
 git add -A && git commit -m 'this is my first commit'
 ```
 
-The user sees the proposed command, approves it, and Interpret executes it.
+The user sees the proposed command, approves it, and nlcli executes it.
 
 ### Product Concept
 
-Interpret is a thin natural-language layer over the existing command line.
+nlcli is a thin natural-language layer over the existing command line.
 
 Its core mental model is:
 
 > **Use normal shell commands when you remember how to do something. Use `@` when you remember what you want to accomplish but not the exact command.**
 
-Interpret is not intended to replace the shell, become a general-purpose AI assistant, or create a persistent conversational environment.
+nlcli is not intended to replace the shell, become a general-purpose AI assistant, or create a persistent conversational environment.
 
 It exists specifically to bridge the gap between **intent** and **CLI syntax**.
 
@@ -79,7 +79,7 @@ Today the user must typically:
 5. return to the terminal;
 6. execute it.
 
-Interpret collapses this workflow into a native shell interaction.
+nlcli collapses this workflow into a native shell interaction.
 
 ---
 
@@ -87,7 +87,7 @@ Interpret collapses this workflow into a native shell interaction.
 
 ## 3.1 The Shell Remains Primary
 
-Interpret augments the command line rather than replacing it.
+nlcli augments the command line rather than replacing it.
 
 The desired interaction is:
 
@@ -107,7 +107,7 @@ Natural language and conventional commands should coexist fluidly.
 
 ## 3.2 Commands, Not Conversation
 
-The primary output of Interpret is executable shell code.
+The primary output of nlcli is executable shell code.
 
 Avoid responses such as:
 
@@ -133,7 +133,7 @@ This:
 @ deploy this branch to staging
 ```
 
-should behave consistently regardless of what the user asked Interpret five minutes earlier.
+should behave consistently regardless of what the user asked nlcli five minutes earlier.
 
 Persistent conversational memory must not silently change the meaning of future commands.
 
@@ -141,7 +141,7 @@ Persistent conversational memory must not silently change the meaning of future 
 
 ## 3.4 Ask Rather Than Guess When the Difference Matters
 
-Interpret should normally make sensible assumptions.
+nlcli should normally make sensible assumptions.
 
 It should ask for clarification only when ambiguity materially changes:
 
@@ -177,7 +177,7 @@ has materially different interpretations and should trigger clarification.
 
 ## 3.5 Make Dangerous Operations Obvious
 
-Interpret must display commands before executing them by default.
+nlcli must display commands before executing them by default.
 
 Destructive, privileged, or otherwise dangerous operations should receive additional warnings and stronger confirmation requirements.
 
@@ -190,15 +190,15 @@ Destructive, privileged, or otherwise dangerous operations should receive additi
 The project should ship a conventional executable:
 
 ```bash
-interpret
+nlcli
 ```
 
 Examples:
 
 ```bash
-interpret --version
-interpret --history
-interpret --config
+nlcli --version
+nlcli --history
+nlcli --config
 ```
 
 This provides a stable executable for:
@@ -260,13 +260,13 @@ After execution, stdout/stderr should stream normally:
  13 files changed, 482 insertions(+)
 ```
 
-Interpret should avoid adding unnecessary narration around successful commands.
+nlcli should avoid adding unnecessary narration around successful commands.
 
 ---
 
 # 6. Tool Hint Syntax
 
-Users should be able to constrain which CLI tool Interpret uses.
+Users should be able to constrain which CLI tool nlcli uses.
 
 Syntax:
 
@@ -292,7 +292,7 @@ Without a prefix:
 @ find when UserService.cfc was last changed
 ```
 
-Interpret is free to choose the appropriate command-line utility.
+nlcli is free to choose the appropriate command-line utility.
 
 This creates three useful levels of expertise:
 
@@ -314,7 +314,7 @@ The user knows the tool.
 
 The user only knows the desired result.
 
-Interpret should support all three workflows naturally.
+nlcli should support all three workflows naturally.
 
 ---
 
@@ -330,7 +330,7 @@ Example:
 $ @ undo my last git commit
 ```
 
-Interpret may render:
+nlcli may render:
 
 ```text
 How should the changes be handled?
@@ -406,7 +406,7 @@ The system prompt should explicitly instruct the model:
 
 > Prefer a reasonable, reversible assumption over asking a question. Ask only when missing information materially changes the command, result, target, or risk.
 
-Interpret should therefore avoid unnecessary questions.
+nlcli should therefore avoid unnecessary questions.
 
 Bad:
 
@@ -481,7 +481,7 @@ The model should not use clarification questions as a substitute for execution c
 
 # 11. Model Interaction Protocol
 
-Interpret should not treat the LLM response as simply:
+nlcli should not treat the LLM response as simply:
 
 ```text
 Natural language -> shell string
@@ -532,7 +532,7 @@ This keeps UI behavior deterministic and consistent.
 
 # 12. Context Model
 
-Interpret should distinguish three forms of context.
+nlcli should distinguish three forms of context.
 
 ## 12.1 Ambient Context
 
@@ -581,7 +581,7 @@ If execution fails:
 rsync: unknown option --foo
 ```
 
-Interpret may offer:
+nlcli may offer:
 
 ```text
 Command failed.
@@ -618,7 +618,7 @@ A future version may support:
 
 where `-c` explicitly means:
 
-> Continue from my previous Interpret request.
+> Continue from my previous nlcli request.
 
 Named sessions may eventually be supported:
 
@@ -633,7 +633,7 @@ Named sessions are **not part of the initial MVP**.
 
 # 13. Environment Inspection
 
-One of Interpret's most important capabilities should be inspecting the CLI tools actually installed on the user's machine.
+One of nlcli's most important capabilities should be inspecting the CLI tools actually installed on the user's machine.
 
 The model should have access to a small collection of safe inspection operations.
 
@@ -710,7 +710,7 @@ cannot simply execute:
 cd ..
 ```
 
-inside the `interpret` process because the directory change disappears when the process exits.
+inside the `nlcli` process because the directory change disappears when the process exits.
 
 The same issue applies to:
 
@@ -733,18 +733,18 @@ Conceptually:
 ```text
 Shell
   ↓
-Interpret receives intent
+nlcli receives intent
   ↓
 Model produces shell code
   ↓
-Interpret renders preview
+nlcli renders preview
   ↓
 User approves
   ↓
 Shell integration executes code in current shell
 ```
 
-The conventional `interpret` executable should remain usable without shell integration, although parent-shell mutations will naturally be unavailable in that mode.
+The conventional `nlcli` executable should remain usable without shell integration, although parent-shell mutations will naturally be unavailable in that mode.
 
 ---
 
@@ -882,7 +882,7 @@ PRIVILEGED
 
 Risk classification should not rely entirely on the LLM.
 
-Interpret should include deterministic detection for common dangerous constructs such as:
+nlcli should include deterministic detection for common dangerous constructs such as:
 
 ```text
 rm -rf
@@ -935,7 +935,7 @@ A future advanced configuration may allow experienced users to relax these rules
 
 History is considered more important than persistent conversational sessions.
 
-Interpret should record local invocation history containing at least:
+nlcli should record local invocation history containing at least:
 
 ```text
 Timestamp
@@ -963,7 +963,7 @@ Sensitive command output should not automatically be persisted.
 Example:
 
 ```bash
-interpret --history
+nlcli --history
 ```
 
 Possible output:
@@ -979,7 +979,7 @@ Possible output:
 Future capabilities may include:
 
 ```bash
-interpret --rerun 32
+nlcli --rerun 32
 ```
 
 and using an earlier request as explicit context.
@@ -1002,7 +1002,7 @@ or:
 cat users.json | @ jq: get the email address of every active user
 ```
 
-Interpret should preferably generate a conventional CLI transformation:
+nlcli should preferably generate a conventional CLI transformation:
 
 ```bash
 jq -r '.users[] | select(.active) | .email'
@@ -1018,7 +1018,7 @@ This preserves the product philosophy:
 
 # 24. Privacy Principle
 
-Whenever possible, Interpret should send **intent and metadata** to the model rather than user data.
+Whenever possible, nlcli should send **intent and metadata** to the model rather than user data.
 
 For example:
 
@@ -1034,7 +1034,7 @@ This distinction should remain a major design principle.
 
 # 25. Error Repair
 
-When a generated command exits unsuccessfully, Interpret should optionally offer one repair cycle.
+When a generated command exits unsuccessfully, nlcli should optionally offer one repair cycle.
 
 Example:
 
@@ -1057,7 +1057,7 @@ Repair should provide the model with:
 
 The repaired command must still go through normal preview and safety evaluation.
 
-Interpret must not enter an uncontrolled autonomous retry loop.
+nlcli must not enter an uncontrolled autonomous retry loop.
 
 ---
 
@@ -1084,7 +1084,7 @@ Keeping these boundaries is important to the identity of the product.
 
 The first functional version should implement:
 
-1. A conventional `interpret` executable.
+1. A conventional `nlcli` executable.
 2. A shell-facing `@` shortcut.
 3. Natural-language intent input.
 4. Ambient OS/shell/cwd context.
@@ -1197,7 +1197,7 @@ The model should **not** control the TUI directly.
 
 # 31. Client Responsibilities
 
-The Interpret client should be responsible for:
+The nlcli client should be responsible for:
 
 - shell integration;
 - collecting ambient context;
@@ -1229,7 +1229,7 @@ Model cannot determine the intended Git operation.
 
 It emits an `AskQuestion` action.
 
-Interpret renders:
+nlcli renders:
 
 ```text
 What should be reset?
@@ -1247,7 +1247,7 @@ User chooses:
 Last commit
 ```
 
-Interpret may ask a second material clarification:
+nlcli may ask a second material clarification:
 
 ```text
 What should happen to the commit's changes?
@@ -1269,7 +1269,7 @@ The model produces:
 git reset --soft HEAD~1
 ```
 
-Interpret classifies it as a write operation and renders:
+nlcli classifies it as a write operation and renders:
 
 ```text
 git reset --soft HEAD~1
@@ -1367,13 +1367,13 @@ When making implementation tradeoffs, prioritize in this order:
 8. **History**
 9. **Extended conversational features**
 
-Do not sacrifice the simplicity of the core interaction in order to make Interpret behave like a more general AI agent.
+Do not sacrifice the simplicity of the core interaction in order to make nlcli behave like a more general AI agent.
 
 ---
 
 # 36. Product Thesis
 
-Interpret should not try to teach the user every CLI syntax or replace the command line with natural language.
+nlcli should not try to teach the user every CLI syntax or replace the command line with natural language.
 
 It should make forgotten syntax almost irrelevant.
 
@@ -1383,4 +1383,4 @@ CLI programs remain the tools.
 
 The AI simply fills in the missing command.
 
-> **Interpret is the part of the shell you use when you remember the outcome but forget the incantation.**
+> **nlcli is the part of the shell you use when you remember the outcome but forget the incantation.**

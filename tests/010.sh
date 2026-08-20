@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-interpret="$root/interpret"
+nlcli="$root/nlcli"
 fail=0
 dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
@@ -25,8 +25,8 @@ EOF
 chmod +x "$ed"
 
 out=$(printf 'e\n\n' | EDITOR="$ed" VISUAL="" \
-	INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"printf original"}' \
-	"$interpret" "print something")
+	NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"printf original"}' \
+	"$nlcli" "print something")
 check edited-ran test "${out%edited}" != "$out"
 
 abort="$dir/abort"
@@ -38,8 +38,8 @@ chmod +x "$abort"
 marker="$dir/nope"
 set +e
 printf 'e\nq\n' | EDITOR="$abort" VISUAL="" \
-	INTERPRET_STUB_ACTION="{\"type\":\"ExecuteCommand\",\"command\":\"touch $marker\"}" \
-	"$interpret" "make a file" >/dev/null
+	NLCLI_STUB_ACTION="{\"type\":\"ExecuteCommand\",\"command\":\"touch $marker\"}" \
+	"$nlcli" "make a file" >/dev/null
 status=$?
 set -e
 check abort-status test "$status" -ne 0

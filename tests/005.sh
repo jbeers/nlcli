@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-interpret="$root/interpret"
+nlcli="$root/nlcli"
 fail=0
 dir=$(mktemp -d)
 
@@ -18,8 +18,8 @@ check() {
 
 empty=$(mktemp -d)
 trap 'rm -rf "$dir" "$empty"' EXIT
-ctx=$(cd "$empty" && INTERPRET_DUMP_CONTEXT=1 INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"true"}' \
-	"$interpret" -n "x" 2>&1 >/dev/null)
+ctx=$(cd "$empty" && NLCLI_DUMP_CONTEXT=1 NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"true"}' \
+	"$nlcli" -n "x" 2>&1 >/dev/null)
 check has-os test "${ctx#*os=}" != "$ctx"
 check has-shell test "${ctx#*shell=}" != "$ctx"
 check has-user test "${ctx#*user=}" != "$ctx"
@@ -28,8 +28,8 @@ check no-fake-git test "${ctx#*git.repo=yes}" = "$ctx"
 
 git init -q -b testers "$dir"
 cd "$dir"
-ctx=$(INTERPRET_DUMP_CONTEXT=1 INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"true"}' \
-	"$interpret" -n "x" 2>&1 >/dev/null)
+ctx=$(NLCLI_DUMP_CONTEXT=1 NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"true"}' \
+	"$nlcli" -n "x" 2>&1 >/dev/null)
 check git-repo test "${ctx#*git.repo=yes}" != "$ctx"
 check git-branch test "${ctx#*git.branch=testers}" != "$ctx"
 

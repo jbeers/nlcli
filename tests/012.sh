@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-interpret="$root/interpret"
+nlcli="$root/nlcli"
 fail=0
 dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
@@ -17,11 +17,11 @@ check() {
 	fi
 }
 
-export INTERPRET_HOME="$dir"
-INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"printf hi"}' \
-	"$interpret" -y "say hi" >/dev/null
+export NLCLI_HOME="$dir"
+NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"printf hi"}' \
+	"$nlcli" -y "say hi" >/dev/null
 
-hist=$(INTERPRET_HOME="$dir" "$interpret" --history)
+hist=$(NLCLI_HOME="$dir" "$nlcli" --history)
 check has-request test "${hist#*say hi}" != "$hist"
 check has-command test "${hist#*printf hi}" != "$hist"
 check no-output test "${hist#*hihi}" = "$hist"

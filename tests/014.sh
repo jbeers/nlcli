@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-interpret="$root/interpret"
+nlcli="$root/nlcli"
 fail=0
 
 check() {
@@ -15,17 +15,17 @@ check() {
 	fi
 }
 
-out=$(INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"ls","explanation":"list files"}' \
-	"$interpret" -n "list files")
+out=$(NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"ls","explanation":"list files"}' \
+	"$nlcli" -n "list files")
 check default-cmd test "$out" = "ls"
 
-out=$(INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"ls","explanation":"list files"}' \
-	"$interpret" -n -e "list files")
+out=$(NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"ls","explanation":"list files"}' \
+	"$nlcli" -n -e "list files")
 check flag-explain test "${out#*list files}" != "$out"
 
 set +e
-out=$(printf '?\nq\n' | INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"true","explanation":"shows truth"}' \
-	"$interpret" "noop")
+out=$(printf '?\nq\n' | NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"true","explanation":"shows truth"}' \
+	"$nlcli" "noop")
 set -e
 check prompt-explain test "${out#*shows truth}" != "$out"
 

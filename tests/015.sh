@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-interpret="$root/interpret"
+nlcli="$root/nlcli"
 fail=0
 dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
@@ -18,8 +18,8 @@ check() {
 }
 
 set +e
-out=$(printf 't\nq\n' | INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"git add -A && git commit -m first"}' \
-	"$interpret" "commit everything")
+out=$(printf 't\nq\n' | NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"git add -A && git commit -m first"}' \
+	"$nlcli" "commit everything")
 status=$?
 set -e
 check teach-git test "${out#*git}" != "$out"
@@ -28,17 +28,17 @@ check teach-exit test "$status" -ne 0
 
 parts='[{"token":"ls","meaning":"list directory"},{"token":"-l","meaning":"long format"}]'
 set +e
-out=$(printf 't\nq\n' | INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l"}' \
-	INTERPRET_STUB_TEACH="$parts" \
-	"$interpret" "list")
+out=$(printf 't\nq\n' | NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l"}' \
+	NLCLI_STUB_TEACH="$parts" \
+	"$nlcli" "list")
 set -e
 check model-parts test "${out#*long format}" != "$out"
 
 set +e
 out=$(printf 't\nq\n' | COLUMNS=45 \
-	INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l --block-size=M"}' \
-	INTERPRET_STUB_TEACH='{"summary":"Long listing with sizes in mebibytes and 1,048,576-byte units.","parts":[{"token":"ls","meaning":"list directory entries"},{"token":"-l","meaning":"long format: mode, owner, size, mtime"},{"token":"--block-size=M","meaning":"sizes in 1048576-byte units, not SI MB"}]}' \
-	"$interpret" "sizes")
+	NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l --block-size=M"}' \
+	NLCLI_STUB_TEACH='{"summary":"Long listing with sizes in mebibytes and 1,048,576-byte units.","parts":[{"token":"ls","meaning":"list directory entries"},{"token":"-l","meaning":"long format: mode, owner, size, mtime"},{"token":"--block-size=M","meaning":"sizes in 1048576-byte units, not SI MB"}]}' \
+	"$nlcli" "sizes")
 set -e
 check summary test "${out#*mebibytes}" != "$out"
 check wrapped-indent test "${out#*"
@@ -48,9 +48,9 @@ check block-size test "${out#*1048576}" != "$out"
 esc=$(printf '\033')
 set +e
 out=$(printf 't\n\033[C\033[Cq' | \
-	INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l"}' \
-	INTERPRET_STUB_TEACH='{"summary":"Lists files.","parts":[{"token":"ls","meaning":"list entries"},{"token":"-l","meaning":"long format"}]}' \
-	script -qefc "$interpret sizes" /dev/null)
+	NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l"}' \
+	NLCLI_STUB_TEACH='{"summary":"Lists files.","parts":[{"token":"ls","meaning":"list entries"},{"token":"-l","meaning":"long format"}]}' \
+	script -qefc "$nlcli sizes" /dev/null)
 status=$?
 set -e
 check interactive-exit test "$status" -ne 0
@@ -63,15 +63,15 @@ check interactive-redraw test "${out#*"$esc[6A$esc[J"}" != "$out"
 marker="$dir/x"
 echo stay > "$marker"
 set +e
-printf 't\n\n' | INTERPRET_STUB_ACTION="{\"type\":\"ExecuteCommand\",\"command\":\"rm -r -- $marker\"}" \
-	"$interpret" "remove it" >/dev/null
+printf 't\n\n' | NLCLI_STUB_ACTION="{\"type\":\"ExecuteCommand\",\"command\":\"rm -r -- $marker\"}" \
+	"$nlcli" "remove it" >/dev/null
 status=$?
 set -e
 check still-default-n test -f "$marker"
 check still-no test "$status" -ne 0
 
-dry=$(INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l"}' \
-	"$interpret" -n "list")
+dry=$(NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l"}' \
+	"$nlcli" -n "list")
 check default-preview test "$dry" = "ls -l"
 
 if [ "$fail" -ne 0 ]; then

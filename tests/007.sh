@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-interpret="$root/interpret"
+nlcli="$root/nlcli"
 fail=0
 
 check() {
@@ -16,13 +16,13 @@ check() {
 }
 
 actions='[{"type":"AskQuestion","question":"Which host?","questionType":"freetext"},{"type":"ExecuteCommand","command":"echo dev.example"}]'
-out=$(INTERPRET_STUB_ACTIONS="$actions" INTERPRET_STUB_ANSWER="dev.example" \
-	"$interpret" -n "rsync this folder")
+out=$(NLCLI_STUB_ACTIONS="$actions" NLCLI_STUB_ANSWER="dev.example" \
+	"$nlcli" -n "rsync this folder")
 check freetext test "$out" = "echo dev.example"
 
 set +e
-err=$(printf '\n' | INTERPRET_STUB_ACTIONS='[{"type":"AskQuestion","question":"Which host?","questionType":"freetext"}]' \
-	"$interpret" -n "rsync this" 2>&1 >/dev/null)
+err=$(printf '\n' | NLCLI_STUB_ACTIONS='[{"type":"AskQuestion","question":"Which host?","questionType":"freetext"}]' \
+	"$nlcli" -n "rsync this" 2>&1 >/dev/null)
 status=$?
 set -e
 check empty-cancels test "$status" -ne 0

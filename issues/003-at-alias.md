@@ -4,13 +4,13 @@
 
 ## What to build
 
-Interactive entry is `@ <request>`. Implement as a bash function/alias that forwards to `interpret` (flags included). Standalone `interpret` stays available without the alias.
+Interactive entry is `@ <request>`. Implement as a bash function/alias that forwards to `nlcli` (flags included). Standalone `nlcli` stays available without the alias.
 
 Parent-shell mutation (`cd`, `export`) is 013, not this slice.
 
 ## Acceptance criteria
 
-- [ ] After enabling the snippet, `@ show me the ten largest files in this directory` matches `interpret …`
+- [ ] After enabling the snippet, `@ show me the ten largest files in this directory` matches `nlcli …`
 - [ ] `@ -n find every file larger than 1gb` works
 - [ ] One documented line/snippet enables it in bash
 

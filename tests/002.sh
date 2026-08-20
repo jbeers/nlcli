@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-interpret="$root/interpret"
+nlcli="$root/nlcli"
 fail=0
 dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
@@ -17,8 +17,8 @@ check() {
 	fi
 }
 
-out=$(printf '\n' | INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"printf ran"}' \
-	"$interpret" "print ran")
+out=$(printf '\n' | NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"printf ran"}' \
+	"$nlcli" "print ran")
 check preview test "${out#*printf ran}" != "$out"
 check ran test "${out#*ran}" != "$out"
 check run-spacing test "${out#*"
@@ -27,16 +27,16 @@ ran"}" != "$out"
 check no-chatter test "${out#*Sure}" = "$out"
 
 set +e
-printf '\n' | INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"exit 7"}' \
-	"$interpret" "fail please" >/dev/null
+printf '\n' | NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"exit 7"}' \
+	"$nlcli" "fail please" >/dev/null
 status=$?
 set -e
 check child-status test "$status" -eq 7
 
 marker="$dir/created"
 set +e
-printf 'q\n' | INTERPRET_STUB_ACTION="{\"type\":\"ExecuteCommand\",\"command\":\"touch $marker\"}" \
-	"$interpret" "make a file" >/dev/null
+printf 'q\n' | NLCLI_STUB_ACTION="{\"type\":\"ExecuteCommand\",\"command\":\"touch $marker\"}" \
+	"$nlcli" "make a file" >/dev/null
 status=$?
 set -e
 check cancel-status test "$status" -ne 0

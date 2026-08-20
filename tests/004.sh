@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-interpret="$root/interpret"
+nlcli="$root/nlcli"
 fail=0
 
 check() {
@@ -15,20 +15,20 @@ check() {
 	fi
 }
 
-out=$(INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"git log -- README.md"}' \
-	"$interpret" -n "git: find commits touching README.md")
+out=$(NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"git log -- README.md"}' \
+	"$nlcli" -n "git: find commits touching README.md")
 check tool-prefix test "$out" = "git log -- README.md"
 
-out=$(INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"ls"}' \
-	"$interpret" -n "show files")
+out=$(NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"ls"}' \
+	"$nlcli" -n "show files")
 check unprefixed test "$out" = "ls"
 
-out=$(INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"curl http://example.com"}' \
-	"$interpret" -n "http://example.com is up")
+out=$(NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"curl http://example.com"}' \
+	"$nlcli" -n "http://example.com is up")
 check url-not-prefix test "$out" = "curl http://example.com"
 
 set +e
-err=$( "$interpret" -n "fooctl: read a file" 2>&1 >/dev/null)
+err=$( "$nlcli" -n "fooctl: read a file" 2>&1 >/dev/null)
 status=$?
 set -e
 check missing-tool-exit test "$status" -ne 0

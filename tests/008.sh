@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-interpret="$root/interpret"
+nlcli="$root/nlcli"
 fail=0
 
 check() {
@@ -16,24 +16,24 @@ check() {
 }
 
 actions='[{"type":"InspectEnvironment","operation":"get_cwd"},{"type":"ExecuteCommand","command":"printf inspected"}]'
-out=$(INTERPRET_STUB_ACTIONS="$actions" "$interpret" -n "where am i")
+out=$(NLCLI_STUB_ACTIONS="$actions" "$nlcli" -n "where am i")
 check inspect-then-cmd test "$out" = "printf inspected"
 
 actions='[{"type":"InspectEnvironment","operation":"command_exists","arguments":"sh"},{"type":"ExecuteCommand","command":"true"}]'
-out=$(INTERPRET_STUB_ACTIONS="$actions" "$interpret" -n "have sh")
+out=$(NLCLI_STUB_ACTIONS="$actions" "$nlcli" -n "have sh")
 check exists-ok test "$out" = "true"
 
 actions='[{"type":"InspectEnvironment","operation":"command_help","arguments":"ls; rm -rf /"},{"type":"ExecuteCommand","command":"true"}]'
-out=$(INTERPRET_STUB_ACTIONS="$actions" "$interpret" -n "bad help")
+out=$(NLCLI_STUB_ACTIONS="$actions" "$nlcli" -n "bad help")
 check help-rejects-argv test "$out" = "true"
 
 actions='[{"type":"InspectEnvironment","operation":"read_file","arguments":"/etc/passwd"},{"type":"ExecuteCommand","command":"true"}]'
-out=$(INTERPRET_STUB_ACTIONS="$actions" "$interpret" -n "no files")
+out=$(NLCLI_STUB_ACTIONS="$actions" "$nlcli" -n "no files")
 check reject-unknown test "$out" = "true"
 
 actions='[{"type":"InspectEnvironment","operation":"get_cwd"},{"type":"InspectEnvironment","operation":"get_cwd"},{"type":"InspectEnvironment","operation":"get_cwd"},{"type":"InspectEnvironment","operation":"get_cwd"},{"type":"InspectEnvironment","operation":"get_cwd"}]'
 set +e
-err=$(INTERPRET_STUB_ACTIONS="$actions" "$interpret" -n "loop" 2>&1 >/dev/null)
+err=$(NLCLI_STUB_ACTIONS="$actions" "$nlcli" -n "loop" 2>&1 >/dev/null)
 status=$?
 set -e
 check inspect-cap test "$status" -ne 0

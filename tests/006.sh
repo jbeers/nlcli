@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-interpret="$root/interpret"
+nlcli="$root/nlcli"
 fail=0
 dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
@@ -19,24 +19,24 @@ check() {
 
 actions='[{"type":"AskQuestion","question":"What should be reset?","choices":["Working-tree","Last commit"]},{"type":"ExecuteCommand","command":"git reset --soft HEAD~1"}]'
 
-out=$(INTERPRET_STUB_ACTIONS="$actions" INTERPRET_STUB_ANSWER="Last commit" \
-	"$interpret" -n "reset my git changes")
+out=$(NLCLI_STUB_ACTIONS="$actions" NLCLI_STUB_ANSWER="Last commit" \
+	"$nlcli" -n "reset my git changes")
 check after-choice test "$out" = "git reset --soft HEAD~1"
 
 set +e
-err=$(INTERPRET_STUB_ACTIONS="$actions" INTERPRET_STUB_ANSWER="Cancel" \
-	"$interpret" -n "reset my git changes" 2>&1 >/tmp/interpret-006-out)
+err=$(NLCLI_STUB_ACTIONS="$actions" NLCLI_STUB_ANSWER="Cancel" \
+	"$nlcli" -n "reset my git changes" 2>&1 >/tmp/nlcli-006-out)
 status=$?
 set -e
 check cancel-exit test "$status" -ne 0
 check cancel-msg test "${err#*cancelled}" != "$err"
-check cancel-no-cmd test ! -s /tmp/interpret-006-out
+check cancel-no-cmd test ! -s /tmp/nlcli-006-out
 
 marker="$dir/nope"
 run="[{\"type\":\"AskQuestion\",\"question\":\"What?\",\"choices\":[\"A\"]},{\"type\":\"ExecuteCommand\",\"command\":\"touch $marker\"}]"
 set +e
-printf 'q\n' | INTERPRET_STUB_ACTIONS="$run" INTERPRET_STUB_ANSWER="A" \
-	"$interpret" "reset my git changes" >/dev/null
+printf 'q\n' | NLCLI_STUB_ACTIONS="$run" NLCLI_STUB_ANSWER="A" \
+	"$nlcli" "reset my git changes" >/dev/null
 status=$?
 set -e
 check still-confirms test "$status" -ne 0

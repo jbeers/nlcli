@@ -16,7 +16,7 @@ check() {
 	fi
 }
 
-out=$(INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"du -h"}' @ -n "show sizes")
+out=$(NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"du -h"}' @ -n "show sizes")
 check at-alias test "$out" = "du -h"
 
 if [ "$fail" -ne 0 ]; then

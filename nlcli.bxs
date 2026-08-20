@@ -1,11 +1,30 @@
-// interpret — NL → shell command. MatchBox runtime.
+// nlcli — NL → shell command. MatchBox runtime.
 
 VERSION = "0.1.0"
 RISK_THRESHOLD = 7
 PAD = "  "
 
-function usage() {
-	systemOutput("usage: interpret [-n|--dry-run] [-y|--yes] [-e|--explain] [--history] <request>", true, true)
+function usage(error = false) {
+	text = "nlcli — turn natural language into reviewed shell commands" & chr(10)
+		& chr(10)
+		& "Usage:" & chr(10)
+		& "  nlcli [options] <request>" & chr(10)
+		& "  @ [options] <request>       Preserve cd/export in Bash" & chr(10)
+		& chr(10)
+		& "Options:" & chr(10)
+		& "  -n, --dry-run   Print the command without running it" & chr(10)
+		& "  -y, --yes       Run non-risky commands without prompting" & chr(10)
+		& "  -e, --explain   Include the command explanation" & chr(10)
+		& "      --history   Show local command history" & chr(10)
+		& "  -h, --help      Show this help" & chr(10)
+		& "  -v, --version   Show the version" & chr(10)
+		& chr(10)
+		& "Approval keys:" & chr(10)
+		& "  Enter  accept default   y  run   e  edit   q/n  cancel   ?  explain   t  teach" & chr(10)
+		& chr(10)
+		& "Configuration:" & chr(10)
+		& "  nlcli.env, NLCLI_API_KEY, NLCLI_BASE_URL, NLCLI_MODEL, MATCHBOX"
+	systemOutput(text, true, error)
 }
 
 function flagOn(options, name) {
@@ -31,8 +50,8 @@ function parseCli(raw) {
 		arrayAppend(parts, p)
 	}
 	return {
-		version: flagOn(opt, "interpret-version") || flagOn(opt, "version") || flagOn(opt, "v"),
-		help: flagOn(opt, "interpret-help") || flagOn(opt, "help") || flagOn(opt, "h"),
+		version: flagOn(opt, "nlcli-version") || flagOn(opt, "version") || flagOn(opt, "v"),
+		help: flagOn(opt, "nlcli-help") || flagOn(opt, "help") || flagOn(opt, "h"),
 		dryRun: flagOn(opt, "n") || flagOn(opt, "dry-run"),
 		yes: flagOn(opt, "y") || flagOn(opt, "yes"),
 		explain: flagOn(opt, "e") || flagOn(opt, "explain"),
@@ -116,7 +135,7 @@ function parseAction(text) {
 }
 
 function modelName() {
-	name = getSystemSetting("INTERPRET_MODEL", "")
+	name = getSystemSetting("NLCLI_MODEL", "")
 	if (name == "") {
 		name = getSystemSetting("OPENAI_MODEL", "gpt-4o-mini")
 	}
@@ -124,7 +143,7 @@ function modelName() {
 }
 
 function apiKey() {
-	key = getSystemSetting("INTERPRET_API_KEY", "")
+	key = getSystemSetting("NLCLI_API_KEY", "")
 	if (key == "") {
 		key = getSystemSetting("OPENAI_API_KEY", "")
 	}
@@ -132,7 +151,7 @@ function apiKey() {
 }
 
 function endpoint() {
-	base = getSystemSetting("INTERPRET_BASE_URL", "")
+	base = getSystemSetting("NLCLI_BASE_URL", "")
 	if (base == "") {
 		base = getSystemSetting("OPENAI_BASE_URL", "https://api.openai.com/v1")
 	}
@@ -275,9 +294,9 @@ function messageText(message) {
 }
 
 function liveCall() {
-	return getSystemSetting("INTERPRET_STUB_ACTION", "") == ""
-		&& getSystemSetting("INTERPRET_STUB_ACTIONS", "") == ""
-		&& getSystemSetting("INTERPRET_STUB_REPAIR", "") == ""
+	return getSystemSetting("NLCLI_STUB_ACTION", "") == ""
+		&& getSystemSetting("NLCLI_STUB_ACTIONS", "") == ""
+		&& getSystemSetting("NLCLI_STUB_REPAIR", "") == ""
 }
 
 function spinBegin(label) {
@@ -579,7 +598,7 @@ function asTeach(data) {
 }
 
 function teachBundle(command, action) {
-	stub = getSystemSetting("INTERPRET_STUB_TEACH", "")
+	stub = getSystemSetting("NLCLI_STUB_TEACH", "")
 	if (stub != "") {
 		try {
 			return asTeach(deserializeJSON(stub))
@@ -598,7 +617,7 @@ function teachBundle(command, action) {
 		} catch (e) {
 		}
 	}
-	if (getSystemSetting("INTERPRET_STUB_ACTION", "") != "" || getSystemSetting("INTERPRET_STUB_ACTIONS", "") != "") {
+	if (getSystemSetting("NLCLI_STUB_ACTION", "") != "" || getSystemSetting("NLCLI_STUB_ACTIONS", "") != "") {
 		return { parts: localParts(command), summary: "" }
 	}
 	got = complete([
@@ -869,7 +888,7 @@ function editCommand(command) {
 	if (editor == "") {
 		editor = getSystemSetting("EDITOR", "vi")
 	}
-	path = getTempDirectory() & "interpret-" & createUUID() & ".sh"
+	path = getTempDirectory() & "nlcli-" & createUUID() & ".sh"
 	fileWrite(path, command)
 	result = systemExecute("sh", ["-c", editor & ' "$1"', "edit", path], 0, false, null, null, null, true, {}, true)
 	if (isNull(result.exitCode) || result.exitCode != 0) {
@@ -879,7 +898,7 @@ function editCommand(command) {
 }
 
 function emitOrRun(command) {
-	dest = getSystemSetting("INTERPRET_EMIT", "")
+	dest = getSystemSetting("NLCLI_EMIT", "")
 	if (dest != "") {
 		fileWrite(dest, command & chr(10))
 		return { exitCode: 0, output: "", error: "" }
@@ -919,9 +938,9 @@ function showExplanation(action) {
 }
 
 function historyFile() {
-	dir = getSystemSetting("INTERPRET_HOME", "")
+	dir = getSystemSetting("NLCLI_HOME", "")
 	if (dir == "") {
-		dir = getSystemSetting("HOME", "/tmp") & "/.interpret"
+		dir = getSystemSetting("HOME", "/tmp") & "/.nlcli"
 	}
 	if (!directoryExists(dir)) {
 		directoryCreate(dir)
@@ -974,7 +993,7 @@ function historyShow() {
 }
 
 function repairCommand(intent, command, ran) {
-	stub = getSystemSetting("INTERPRET_STUB_REPAIR", "")
+	stub = getSystemSetting("NLCLI_STUB_REPAIR", "")
 	if (stub != "") {
 		return parseAction(stub)
 	}
@@ -1058,11 +1077,11 @@ function runInspect(action) {
 }
 
 function loadStubs() {
-	many = getSystemSetting("INTERPRET_STUB_ACTIONS", "")
+	many = getSystemSetting("NLCLI_STUB_ACTIONS", "")
 	if (many != "") {
 		return deserializeJSON(many)
 	}
-	one = getSystemSetting("INTERPRET_STUB_ACTION", "")
+	one = getSystemSetting("NLCLI_STUB_ACTION", "")
 	if (one != "") {
 		return [deserializeJSON(one)]
 	}
@@ -1080,7 +1099,7 @@ function questionKind(action) {
 }
 
 function ask(action) {
-	stub = getSystemSetting("INTERPRET_STUB_ANSWER", "")
+	stub = getSystemSetting("NLCLI_STUB_ANSWER", "")
 	kind = questionKind(action)
 	free = kind == "freetext" || kind == "free" || kind == "text" || arrayLen(action.choices) == 0
 	if (free) {
@@ -1131,7 +1150,7 @@ function ask(action) {
 
 function resolve(request) {
 	hint = parseHint(request)
-	if (getSystemSetting("INTERPRET_DUMP_CONTEXT", "") != "") {
+	if (getSystemSetting("NLCLI_DUMP_CONTEXT", "") != "") {
 		systemOutput(ambient(), true, true)
 	}
 	stubs = loadStubs()
@@ -1201,7 +1220,7 @@ function resolve(request) {
 function main() {
 	parsed = parseCli(cliGetArgs())
 	if (parsed.version) {
-		println("interpret " & VERSION)
+		println("nlcli " & VERSION)
 		cliExit(0)
 	}
 	if (parsed.help) {
@@ -1213,7 +1232,7 @@ function main() {
 		cliExit(0)
 	}
 	if (trim(parsed.request) == "") {
-		usage()
+		usage(true)
 		cliExit(2)
 	}
 	action = resolve(parsed.request)

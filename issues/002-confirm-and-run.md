@@ -10,7 +10,7 @@ Without `--dry-run`, show the generated command and wait:
 Run? [Enter/e/q]
 ```
 
-Enter runs it as a child process with live stdout/stderr. `q` cancels. Successful runs add no narration. Interpret's exit code is the child's exit code.
+Enter runs it as a child process with live stdout/stderr. `q` cancels. Successful runs add no narration. nlcli's exit code is the child's exit code.
 
 `e` and `?` may be stubbed until 010 and 014.
 
@@ -19,7 +19,7 @@ Enter runs it as a child process with live stdout/stderr. `q` cancels. Successfu
 - [ ] Default flow is preview → Enter → streamed child output
 - [ ] `q` executes nothing
 - [ ] Child stdout/stderr stream in real time
-- [ ] On run, `interpret` exits with the child's status
+- [ ] On run, `nlcli` exits with the child's status
 - [ ] Success is not wrapped in assistant chatter
 
 ## Blocked by

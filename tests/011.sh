@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-interpret="$root/interpret"
+nlcli="$root/nlcli"
 fail=0
 
 check() {
@@ -15,22 +15,22 @@ check() {
 	fi
 }
 
-out=$(printf '\nr\n\n' | INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"sh -c \"echo fail; exit 7\""}' \
-	INTERPRET_STUB_REPAIR='{"type":"ExecuteCommand","command":"printf repaired"}' \
-	"$interpret" "do the thing")
+out=$(printf '\nr\n\n' | NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"sh -c \"echo fail; exit 7\""}' \
+	NLCLI_STUB_REPAIR='{"type":"ExecuteCommand","command":"printf repaired"}' \
+	"$nlcli" "do the thing")
 check repaired test "${out%repaired}" != "$out"
 
 set +e
-printf '\nr\n\n' | INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"sh -c \"exit 7\""}' \
-	INTERPRET_STUB_REPAIR='{"type":"ExecuteCommand","command":"sh -c \"exit 8\""}' \
-	"$interpret" "fail twice" >/dev/null
+printf '\nr\n\n' | NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"sh -c \"exit 7\""}' \
+	NLCLI_STUB_REPAIR='{"type":"ExecuteCommand","command":"sh -c \"exit 8\""}' \
+	"$nlcli" "fail twice" >/dev/null
 status=$?
 set -e
 check one-repair test "$status" -eq 8
 
 set +e
-printf '\nq\n' | INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"sh -c \"exit 7\""}' \
-	"$interpret" "quit repair" >/dev/null
+printf '\nq\n' | NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"sh -c \"exit 7\""}' \
+	"$nlcli" "quit repair" >/dev/null
 status=$?
 set -e
 check quit-keeps-status test "$status" -eq 7
