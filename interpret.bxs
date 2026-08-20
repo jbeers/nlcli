@@ -2,6 +2,7 @@
 
 VERSION = "0.1.0"
 RISK_THRESHOLD = 7
+PAD = "  "
 
 function usage() {
 	systemOutput("usage: interpret [-n|--dry-run] [-y|--yes] [-e|--explain] [--history] <request>", true, true)
@@ -285,11 +286,11 @@ function spinBegin(label) {
 		return stop
 	}
 	frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
-	systemOutput(chr(13) & frames[1] & "  " & label, false, true)
+	systemOutput(chr(13) & PAD & frames[1] & "  " & label, false, true)
 	runAsync(() => {
 		var fi = 2
 		while (!stop.on) {
-			systemOutput(chr(13) & frames[fi] & "  " & label, false, true)
+			systemOutput(chr(13) & PAD & frames[fi] & "  " & label, false, true)
 			fi = (fi >= arrayLen(frames)) ? 1 : fi + 1
 			sleep(80)
 		}
@@ -304,6 +305,14 @@ function spinEnd(stop) {
 	}
 	sleep(100)
 	systemOutput(chr(13) & "                              " & chr(13), false, true)
+}
+
+function say(text) {
+	println(PAD & replace(text, chr(10), chr(10) & PAD, "all"))
+}
+
+function askPad(prompt) {
+	return cliRead(PAD & prompt)
 }
 
 function paint(text, risky) {
@@ -660,11 +669,11 @@ function printTree(command, parts) {
 		return
 	}
 	if (n < 1) {
-		println(command)
+		say(command)
 		return
 	}
 	starts = partStarts(command, parts)
-	println(command)
+	say(command)
 	var pi = n
 	while (pi >= 1) {
 		meaning = structKeyExists(parts[pi], "meaning") ? trim(toString(parts[pi].meaning)) : ""
@@ -678,7 +687,7 @@ function printTree(command, parts) {
 			line = line & (colMark(starts, col, pi - 1) ? "│" : " ")
 			col = col + 1
 		}
-		println(cyan(line & "└─ ") & meaning)
+		say(cyan(line & "└─ ") & meaning)
 		pi = pi - 1
 	}
 }
@@ -686,7 +695,7 @@ function printTree(command, parts) {
 function confirmRun(risky, command, action) {
 	prompt = risky ? "Run? [y/N/e/?/t] " : "Run? [Enter/e/q/t] "
 	while (true) {
-		answer = lcase(trim(cliRead(paint(prompt, risky))))
+		answer = lcase(trim(askPad(paint(prompt, risky))))
 		if (answer == "") {
 			return risky ? "no" : "yes"
 		}
@@ -711,7 +720,7 @@ function confirmRun(risky, command, action) {
 			printTree(command, bundle.parts)
 			if (structKeyExists(bundle, "summary") && trim(bundle.summary) != "") {
 				println("")
-				println(bundle.summary)
+				say(bundle.summary)
 			}
 			println("")
 			action["_shownTeach"] = true
@@ -770,7 +779,7 @@ function showExplanation(action) {
 	if (text == "") {
 		text = "(no explanation)"
 	}
-	println(text)
+	say(text)
 }
 
 function historyFile() {
@@ -1081,7 +1090,11 @@ function main() {
 	if (!parsed.dryRun) {
 		println("")
 	}
-	println(parsed.dryRun ? command : paint(command, risk.risky))
+	if (parsed.dryRun) {
+		println(command)
+	} else {
+		say(paint(command, risk.risky))
+	}
 	if (parsed.explain) {
 		showExplanation(action)
 	}
@@ -1089,7 +1102,7 @@ function main() {
 		cliExit(0)
 	}
 	if (risk.risky && risk.warning != "") {
-		println(paint("⚠ " & risk.warning, true))
+		say(paint("⚠ " & risk.warning, true))
 	}
 	ran = { exitCode: 1, output: "", error: "" }
 	if (parsed.yes && !risk.risky) {
@@ -1110,9 +1123,9 @@ function main() {
 				command = edited
 				risk = mergeRisk(command, {})
 				println("")
-				println(paint(command, risk.risky))
+				say(paint(command, risk.risky))
 				if (risk.risky && risk.warning != "") {
-					println(paint("⚠ " & risk.warning, true))
+					say(paint("⚠ " & risk.warning, true))
 				}
 				continue
 			}
@@ -1126,7 +1139,7 @@ function main() {
 	}
 	historyAppend(parsed.request, command, ran.exitCode)
 	if (ran.exitCode != 0) {
-		fix = lcase(trim(cliRead("[r] Repair  [e] Edit  [q] Quit ")))
+		fix = lcase(trim(askPad("[r] Repair  [e] Edit  [q] Quit ")))
 		if (fix == "r") {
 			repaired = repairCommand(parsed.request, command, ran)
 			if (repaired.type != "ExecuteCommand") {
@@ -1137,12 +1150,12 @@ function main() {
 			action = repaired
 			risk = mergeRisk(command, action)
 			println("")
-			println(paint(command, risk.risky))
+			say(paint(command, risk.risky))
 			if (parsed.explain) {
 				showExplanation(action)
 			}
 			if (risk.risky && risk.warning != "") {
-				println(paint("⚠ " & risk.warning, true))
+				say(paint("⚠ " & risk.warning, true))
 			}
 			choice = confirmRun(risk.risky, command, action)
 			if (choice == "yes") {
@@ -1155,7 +1168,7 @@ function main() {
 			if (edited != "") {
 				command = edited
 				println("")
-				println(paint(command, mergeRisk(command, {}).risky))
+				say(paint(command, mergeRisk(command, {}).risky))
 				choice = confirmRun(mergeRisk(command, {}).risky, command, action)
 				if (choice == "yes") {
 					println("")
