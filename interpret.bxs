@@ -317,12 +317,17 @@ function say(text) {
 	println(PAD & replace(text, chr(10), chr(10) & PAD, "all"))
 }
 
-function wrappedText(text) {
+function terminalWidth() {
 	width = getSystemSetting("COLUMNS", "80")
-	if (!isNumeric(width) || width < 20) {
-		width = 80
-	}
-	return wrap(text, width - len(PAD), true)
+	return (!isNumeric(width) || width < 20) ? 80 : width
+}
+
+function visibleRows(length) {
+	return max(ceiling((len(PAD) + length) / terminalWidth()), 1)
+}
+
+function wrappedText(text) {
+	return wrap(text, terminalWidth() - len(PAD), true)
 }
 
 function sayWrapped(text) {
@@ -727,13 +732,14 @@ function printTree(command, parts, selected = 0) {
 	try {
 		n = arrayLen(parts)
 	} catch (e) {
-		return
+		return 0
 	}
 	if (n < 1) {
 		say(command)
-		return
+		return visibleRows(len(command))
 	}
 	starts = partStarts(command, parts)
+	rows = visibleRows(len(command))
 	say(selectedCommand(command, parts, starts, selected))
 	var pi = n
 	while (pi >= 1) {
@@ -758,17 +764,22 @@ function printTree(command, parts, selected = 0) {
 		} else {
 			say(cyan(line & "└─ ") & meaning)
 		}
+		rows = rows + visibleRows(anchor - 1 + 3 + len(meaning))
 		pi = pi - 1
 	}
+	return rows
 }
 
 function renderTeach(command, bundle, selected = 0) {
-	printTree(command, bundle.parts, selected)
+	rows = printTree(command, bundle.parts, selected)
 	if (structKeyExists(bundle, "summary") && trim(bundle.summary) != "") {
 		println("")
-		sayWrapped(bundle.summary)
+		text = wrappedText(bundle.summary)
+		say(text)
+		rows = rows + 2 + len(text) - len(replace(text, chr(10), "", "all"))
 	}
 	println("")
+	return rows + 1
 }
 
 function browseTeach(command, bundle, risky) {
@@ -778,8 +789,7 @@ function browseTeach(command, bundle, risky) {
 	}
 	prompt = risky ? "Run? [y/N/e/?/t] " : "Run? [Enter/e/q/t] "
 	selected = 0
-	systemOutput(chr(27) & "[s", false, false)
-	renderTeach(command, bundle, selected)
+	rows = renderTeach(command, bundle, selected)
 	systemOutput(PAD & paint(prompt, risky), false, false)
 	while (true) {
 		try {
@@ -806,8 +816,9 @@ function browseTeach(command, bundle, risky) {
 		}
 		if (next != selected) {
 			selected = next
-			systemOutput(chr(27) & "[u" & chr(27) & "[J", false, false)
-			renderTeach(command, bundle, selected)
+			up = rows + visibleRows(len(prompt)) - 1
+			systemOutput(chr(13) & chr(27) & "[" & up & "A" & chr(27) & "[J", false, false)
+			rows = renderTeach(command, bundle, selected)
 			systemOutput(PAD & paint(prompt, risky), false, false)
 		}
 	}

@@ -58,7 +58,7 @@ check interactive-focus test "${out#*"$esc[1;36m"}" != "$out"
 check interactive-background test "${out#*"$esc[30;46m-l"}" != "$out"
 check interactive-dim test "${out#*"$esc[2m"}" != "$out"
 check interactive-pointer-owner test "${out#*"$esc[2m│$esc[0m  $esc[1;36m└─ long format"}" != "$out"
-check interactive-redraw test "${out#*"$esc[u$esc[J"}" != "$out"
+check interactive-redraw test "${out#*"$esc[6A$esc[J"}" != "$out"
 
 marker="$dir/x"
 echo stay > "$marker"
