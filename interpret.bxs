@@ -479,9 +479,9 @@ function localParts(command) {
 function teachPrompt() {
 	return "Explain this shell command to an experienced developer who must decide whether to run it."
 		& " Reply with one JSON object and nothing else:"
-		& " {""summary"":""what the whole pipeline does, side effects, output shape, and the main risk"",""parts"":[{""token"":""exact token from the command"",""meaning"":""2-4 sentences: behavior, defaults, units, and gotchas""}]}"
-		& " Every token must appear, including pipes, quotes, && and flags with their values (e.g. --block-size=M)."
-		& " Be concrete: M vs MB, cwd, overwrite, recursion, exit codes. No markdown."
+		& " {""summary"":""a short paragraph covering behavior, output, side effects, units, and risk"",""parts"":[{""token"":""exact token"",""meaning"":""one short clause, no period pile-up""}]}"
+		& " parts[].meaning must be a single short line (under 60 chars). Put depth in summary."
+		& " Every token must appear, including pipes, &&, and flags with values (e.g. --block-size=M). No markdown."
 }
 
 function asTeach(data) {
@@ -521,10 +521,15 @@ function teachBundle(command, action) {
 		} catch (e) {
 		}
 	}
+	stop = spinStart()
+	if (getSystemSetting("INTERPRET_STUB_ACTION", "") != "" || getSystemSetting("INTERPRET_STUB_ACTIONS", "") != "") {
+		return { parts: localParts(command), summary: "" }
+	}
 	got = complete([
 		{ role: "system", content: teachPrompt() },
 		{ role: "user", content: command }
 	])
+	spinStop(stop)
 	if (got.ok) {
 		blob = jsonObject(got.text)
 		if (blob != "") {
@@ -541,29 +546,103 @@ function teachBundle(command, action) {
 	return { parts: localParts(command), summary: "" }
 }
 
+function cyan(text) {
+	return chr(27) & "[36m" & text & chr(27) & "[0m"
+}
+
+function spinStart() {
+	stop = { on: false }
+	frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
+	runAsync(() => {
+		i = 1
+		while (!stop.on) {
+			systemOutput(chr(13) & frames[i] & "  explaining", false, true)
+			i = (i >= arrayLen(frames)) ? 1 : i + 1
+			sleep(80)
+		}
+	})
+	return stop
+}
+
+function spinStop(stop) {
+	stop.on = true
+	sleep(100)
+	systemOutput(chr(13) & "                    " & chr(13), false, true)
+}
+
+function partStarts(command, parts) {
+	starts = []
+	pos = 1
+	for (p in parts) {
+		tok = structKeyExists(p, "token") ? toString(p.token) : ""
+		found = 1
+		if (tok != "") {
+			found = find(tok, mid(command, pos, len(command)))
+			if (found < 1) {
+				found = 1
+			}
+		}
+		start = pos + found - 1
+		arrayAppend(starts, start)
+		pos = start + max(len(tok), 1)
+	}
+	return starts
+}
+
+function colMark(starts, col, lastIdx) {
+	i = 1
+	while (i <= lastIdx) {
+		if (starts[i] == col) {
+			return true
+		}
+		i = i + 1
+	}
+	return false
+}
+
+function printTree(command, parts) {
+	n = 0
+	try {
+		n = arrayLen(parts)
+	} catch (e) {
+		return
+	}
+	if (n < 1) {
+		println(command)
+		return
+	}
+	starts = partStarts(command, parts)
+	println(command)
+	hang = ""
+	col = 1
+	lim = len(command)
+	while (col <= lim) {
+		hang = hang & (colMark(starts, col, n) ? "│" : " ")
+		col = col + 1
+	}
+	println(cyan(hang))
+	i = n
+	while (i >= 1) {
+		meaning = structKeyExists(parts[i], "meaning") ? toString(parts[i].meaning) : ""
+		line = ""
+		col = 1
+		anchor = starts[i]
+		while (col < anchor) {
+			line = line & (colMark(starts, col, i - 1) ? "│" : " ")
+			col = col + 1
+		}
+		println(cyan(line & "└─ ") & meaning)
+		i = i - 1
+	}
+}
+
 function printTeach(command, action) {
 	bundle = teachBundle(command, action)
-	parts = bundle.parts
-	width = 4
-	for (p in parts) {
-		tok = structKeyExists(p, "token") ? toString(p.token) : ""
-		if (len(tok) > width) {
-			width = len(tok)
-		}
-	}
 	println("")
+	printTree(command, bundle.parts)
 	if (structKeyExists(bundle, "summary") && trim(bundle.summary) != "") {
-		println(bundle.summary)
 		println("")
-	}
-	for (p in parts) {
-		tok = structKeyExists(p, "token") ? toString(p.token) : ""
-		meaning = structKeyExists(p, "meaning") ? toString(p.meaning) : ""
-		pad = tok
-		while (len(pad) < width) {
-			pad = pad & " "
-		}
-		println("  " & pad & "  " & meaning)
+		println(bundle.summary)
 	}
 	println("")
 }
