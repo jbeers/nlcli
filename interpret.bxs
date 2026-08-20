@@ -200,7 +200,7 @@ function systemPrompt(tool) {
 	return prompt
 }
 
-function complete(messages) {
+function complete(messages, label = "thinking…") {
 	body = serializeJSON({
 		model: modelName(),
 		temperature: 0,
@@ -211,6 +211,7 @@ function complete(messages) {
 	if (key != "") {
 		headers["Authorization"] = "Bearer " & key
 	}
+	spin = spinBegin(label)
 	try {
 		httpResult = http({
 			url: endpoint(),
@@ -221,14 +222,17 @@ function complete(messages) {
 		try {
 			httpResult = httpResult.get()
 		} catch (waitErr) {
+			spinEnd(spin)
 			return { ok: false, text: "", error: waitErr.message }
 		}
 		if (isSimpleValue(httpResult)) {
 			httpResult = deserializeJSON(httpResult)
 		}
 	} catch (e) {
+		spinEnd(spin)
 		return { ok: false, text: "", error: e.message }
 	}
+	spinEnd(spin)
 	if (httpResult.status < 200 || httpResult.status >= 300) {
 		return { ok: false, text: "", error: httpResult.file_content }
 	}
@@ -267,6 +271,39 @@ function messageText(message) {
 		text = message.reasoning_content
 	}
 	return text
+}
+
+function liveCall() {
+	return getSystemSetting("INTERPRET_STUB_ACTION", "") == ""
+		&& getSystemSetting("INTERPRET_STUB_ACTIONS", "") == ""
+		&& getSystemSetting("INTERPRET_STUB_REPAIR", "") == ""
+}
+
+function spinBegin(label) {
+	stop = { on: false }
+	if (!liveCall()) {
+		return stop
+	}
+	frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
+	systemOutput(chr(13) & frames[1] & "  " & label, false, true)
+	runAsync(() => {
+		var fi = 2
+		while (!stop.on) {
+			systemOutput(chr(13) & frames[fi] & "  " & label, false, true)
+			fi = (fi >= arrayLen(frames)) ? 1 : fi + 1
+			sleep(80)
+		}
+	})
+	return stop
+}
+
+function spinEnd(stop) {
+	stop.on = true
+	if (!liveCall()) {
+		return
+	}
+	sleep(100)
+	systemOutput(chr(13) & "                              " & chr(13), false, true)
 }
 
 function paint(text, risky) {
@@ -535,7 +572,7 @@ function teachBundle(command, action) {
 	got = complete([
 		{ role: "system", content: teachPrompt() },
 		{ role: "user", content: command }
-	])
+	], "explaining…")
 	if (got.ok) {
 		blob = jsonObject(got.text)
 		if (blob != "") {
@@ -670,20 +707,7 @@ function confirmRun(risky, command, action) {
 				continue
 			}
 			wipeLines(risky ? 3 : 2)
-			stop = { on: false }
-			frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
-			runAsync(() => {
-				var fi = 1
-				while (!stop.on) {
-					systemOutput(chr(13) & frames[fi] & "  explaining…", false, false)
-					fi = (fi >= arrayLen(frames)) ? 1 : fi + 1
-					sleep(80)
-				}
-			})
 			bundle = teachBundle(command, action)
-			stop.on = true
-			sleep(100)
-			systemOutput(chr(13) & "                         " & chr(13), false, false)
 			printTree(command, bundle.parts)
 			if (structKeyExists(bundle, "summary") && trim(bundle.summary) != "") {
 				println("")
