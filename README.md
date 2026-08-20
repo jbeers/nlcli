@@ -52,6 +52,47 @@ For the shorter Bash interface:
 
 The `@` function executes approved commands in the current shell, allowing changes such as `cd` and `export` to persist. Direct `nlcli` execution cannot modify its parent shell.
 
+## Five things worth trying
+
+Generated commands vary with your machine, but these are representative.
+
+### Find the change, not just the file
+
+```console
+$ @ git: find the commit that removed UserService
+  git log -S'UserService' --all --oneline
+```
+
+### Diagnose the dev server you forgot about
+
+```console
+$ @ show me what is listening on port 3000
+  lsof -nP -iTCP:3000 -sTCP:LISTEN
+```
+
+### Turn an API response into something readable
+
+```console
+$ @ fetch localhost:8080/api/users and show id, email, and role as a table
+  curl -sS http://localhost:8080/api/users | jq -r '.[] | [.id, .email, .role] | @tsv' | column -t
+```
+
+### Find repository bloat without searching ignored files
+
+```console
+$ @ show the ten largest files known to git
+  git ls-files -z | xargs -0 du -h | sort -hr | head -10
+```
+
+### Change the current shell without remembering the syntax
+
+```console
+$ @ create a temporary workspace, cd into it, and export DEBUG=1
+  work=$(mktemp -d) && cd "$work" && export DEBUG=1
+```
+
+Because this last command runs through `@`, the new directory and environment variable remain active afterward.
+
 ## Options
 
 ```text
@@ -81,7 +122,22 @@ Tool prefixes constrain command generation:
 | `?` | Show the explanation |
 | `t` | Open the interactive token breakdown |
 
-In teach mode, use `Left`/`Right` or `h`/`l` to select command tokens. The normal approval keys remain active.
+## Teach mode
+
+Press `t` at any approval prompt to replace the preview with a token-by-token explanation:
+
+```text
+ls -l --block-size=M
+│  │  └─ display sizes in mebibytes
+│  └─ use long listing format
+└─ list directory contents
+
+Lists the current directory in long format with sizes measured in MiB.
+```
+
+The initial view is a normal readable breakdown. Use `Left`/`Right` or `h`/`l` to move through the command. The selected token gets a background highlight, its connector and explanation are emphasized, and unrelated token details are dimmed.
+
+Teach mode never executes anything by itself. The approval keys remain active while browsing: `Enter` accepts the default, `y` runs explicitly, `e` edits, and `q`/`n` cancels. Risky commands still default to No.
 
 ## Development
 
