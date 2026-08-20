@@ -289,6 +289,9 @@ function spinBegin(label) {
 	if (!liveCall()) {
 		return stop
 	}
+	if (label == "thinking…") {
+		systemOutput(chr(10), false, true)
+	}
 	systemOutput(chr(13) & PAD & stop.frames[1] & "  " & stop.label, false, true)
 	runAsync(() => {
 		var fi = 2
@@ -703,24 +706,30 @@ function printTree(command, parts) {
 	}
 }
 
+function finishPrompt(choice) {
+	println("")
+	println("")
+	return choice
+}
+
 function confirmRun(risky, command, action) {
 	prompt = risky ? "Run? [y/N/e/?/t] " : "Run? [Enter/e/q/t] "
 	while (true) {
 		answer = lcase(trim(askPad(paint(prompt, risky))))
 		if (answer == "") {
-			return risky ? "no" : "yes"
+			return finishPrompt(risky ? "no" : "yes")
 		}
 		if (answer == "y") {
-			return "yes"
+			return finishPrompt("yes")
 		}
 		if (answer == "q" || answer == "n") {
-			return "no"
+			return finishPrompt("no")
 		}
 		if (answer == "e") {
-			return "edit"
+			return finishPrompt("edit")
 		}
 		if (answer == "?") {
-			return "explain"
+			return finishPrompt("explain")
 		}
 		if (answer == "t") {
 			if (structKeyExists(action, "_shownTeach") && action._shownTeach) {
@@ -1143,7 +1152,6 @@ function main() {
 			if (choice != "yes") {
 				cliExit(1)
 			}
-			println("")
 			ran = emitOrRun(command)
 			break
 		}
@@ -1170,7 +1178,6 @@ function main() {
 			}
 			choice = confirmRun(risk.risky, command, action)
 			if (choice == "yes") {
-				println("")
 				ran = emitOrRun(command)
 				historyAppend(parsed.request, command, ran.exitCode)
 			}
@@ -1182,7 +1189,6 @@ function main() {
 				say(paint(command, mergeRisk(command, {}).risky))
 				choice = confirmRun(mergeRisk(command, {}).risky, command, action)
 				if (choice == "yes") {
-					println("")
 					ran = emitOrRun(command)
 					historyAppend(parsed.request, command, ran.exitCode)
 				}

@@ -21,6 +21,9 @@ out=$(printf '\n' | INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"p
 	"$interpret" "print ran")
 check preview test "${out#*printf ran}" != "$out"
 check ran test "${out#*ran}" != "$out"
+check run-spacing test "${out#*"
+
+ran"}" != "$out"
 check no-chatter test "${out#*Sure}" = "$out"
 
 set +e
