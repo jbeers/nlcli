@@ -347,7 +347,7 @@ function tokenizeCommand(command) {
 	tokens = []
 	buf = ""
 	quote = ""
-	i = 1
+	var i = 1
 	n = len(command)
 	while (i <= n) {
 		ch = mid(command, i, 1)
@@ -521,7 +521,6 @@ function teachBundle(command, action) {
 		} catch (e) {
 		}
 	}
-	stop = spinStart()
 	if (getSystemSetting("INTERPRET_STUB_ACTION", "") != "" || getSystemSetting("INTERPRET_STUB_ACTIONS", "") != "") {
 		return { parts: localParts(command), summary: "" }
 	}
@@ -529,7 +528,6 @@ function teachBundle(command, action) {
 		{ role: "system", content: teachPrompt() },
 		{ role: "user", content: command }
 	])
-	spinStop(stop)
 	if (got.ok) {
 		blob = jsonObject(got.text)
 		if (blob != "") {
@@ -550,24 +548,32 @@ function cyan(text) {
 	return chr(27) & "[36m" & text & chr(27) & "[0m"
 }
 
-function spinStart() {
-	stop = { on: false }
-	frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
-	runAsync(() => {
-		i = 1
-		while (!stop.on) {
-			systemOutput(chr(13) & frames[i] & "  explaining", false, true)
-			i = (i >= arrayLen(frames)) ? 1 : i + 1
-			sleep(80)
-		}
-	})
-	return stop
+function wipeLines(n) {
+	if (n < 1) {
+		return
+	}
+	systemOutput(chr(27) & "[" & n & "A" & chr(27) & "[J", false, false)
 }
 
-function spinStop(stop) {
-	stop.on = true
-	sleep(100)
-	systemOutput(chr(13) & "                    " & chr(13), false, true)
+function fillMeanings(command, parts) {
+	fallback = localParts(command)
+	for (p in parts) {
+		has = structKeyExists(p, "meaning") && trim(toString(p.meaning)) != ""
+		if (has) {
+			continue
+		}
+		tok = structKeyExists(p, "token") ? toString(p.token) : ""
+		for (f in fallback) {
+			if (f.token == tok) {
+				p.meaning = f.meaning
+				break
+			}
+		}
+		if (!structKeyExists(p, "meaning") || trim(toString(p.meaning)) == "") {
+			p.meaning = tok
+		}
+	}
+	return parts
 }
 
 function partStarts(command, parts) {
@@ -590,17 +596,18 @@ function partStarts(command, parts) {
 }
 
 function colMark(starts, col, lastIdx) {
-	i = 1
-	while (i <= lastIdx) {
-		if (starts[i] == col) {
+	var idx = 1
+	while (idx <= lastIdx) {
+		if (starts[idx] == col) {
 			return true
 		}
-		i = i + 1
+		idx = idx + 1
 	}
 	return false
 }
 
 function printTree(command, parts) {
+	parts = fillMeanings(command, parts)
 	n = 0
 	try {
 		n = arrayLen(parts)
@@ -613,38 +620,22 @@ function printTree(command, parts) {
 	}
 	starts = partStarts(command, parts)
 	println(command)
-	hang = ""
-	col = 1
-	lim = len(command)
-	while (col <= lim) {
-		hang = hang & (colMark(starts, col, n) ? "│" : " ")
-		col = col + 1
-	}
-	println(cyan(hang))
-	i = n
-	while (i >= 1) {
-		meaning = structKeyExists(parts[i], "meaning") ? toString(parts[i].meaning) : ""
+	var pi = n
+	while (pi >= 1) {
+		meaning = structKeyExists(parts[pi], "meaning") ? trim(toString(parts[pi].meaning)) : ""
 		line = ""
-		col = 1
-		anchor = starts[i]
+		var col = 1
+		anchor = starts[pi]
+		if (anchor < 1) {
+			anchor = 1
+		}
 		while (col < anchor) {
-			line = line & (colMark(starts, col, i - 1) ? "│" : " ")
+			line = line & (colMark(starts, col, pi - 1) ? "│" : " ")
 			col = col + 1
 		}
 		println(cyan(line & "└─ ") & meaning)
-		i = i - 1
+		pi = pi - 1
 	}
-}
-
-function printTeach(command, action) {
-	bundle = teachBundle(command, action)
-	println("")
-	printTree(command, bundle.parts)
-	if (structKeyExists(bundle, "summary") && trim(bundle.summary) != "") {
-		println("")
-		println(bundle.summary)
-	}
-	println("")
 }
 
 function confirmRun(risky, command, action) {
@@ -667,7 +658,20 @@ function confirmRun(risky, command, action) {
 			return "explain"
 		}
 		if (answer == "t") {
-			printTeach(command, action)
+			if (structKeyExists(action, "_shownTeach") && action._shownTeach) {
+				continue
+			}
+			wipeLines(risky ? 3 : 2)
+			println("⠋  explaining…")
+			bundle = teachBundle(command, action)
+			wipeLines(1)
+			printTree(command, bundle.parts)
+			if (structKeyExists(bundle, "summary") && trim(bundle.summary) != "") {
+				println("")
+				println(bundle.summary)
+			}
+			println("")
+			action["_shownTeach"] = true
 		}
 	}
 }
