@@ -218,6 +218,14 @@ function complete(messages) {
 			headers: headers,
 			body: body
 		})
+		try {
+			httpResult = httpResult.get()
+		} catch (waitErr) {
+			return { ok: false, text: "", error: waitErr.message }
+		}
+		if (isSimpleValue(httpResult)) {
+			httpResult = deserializeJSON(httpResult)
+		}
 	} catch (e) {
 		return { ok: false, text: "", error: e.message }
 	}
@@ -662,9 +670,20 @@ function confirmRun(risky, command, action) {
 				continue
 			}
 			wipeLines(risky ? 3 : 2)
-			println("⠋  explaining…")
+			stop = { on: false }
+			frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
+			runAsync(() => {
+				var fi = 1
+				while (!stop.on) {
+					systemOutput(chr(13) & frames[fi] & "  explaining…", false, false)
+					fi = (fi >= arrayLen(frames)) ? 1 : fi + 1
+					sleep(80)
+				}
+			})
 			bundle = teachBundle(command, action)
-			wipeLines(1)
+			stop.on = true
+			sleep(100)
+			systemOutput(chr(13) & "                         " & chr(13), false, false)
 			printTree(command, bundle.parts)
 			if (structKeyExists(bundle, "summary") && trim(bundle.summary) != "") {
 				println("")
