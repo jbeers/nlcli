@@ -45,6 +45,19 @@ check wrapped-indent test "${out#*"
   1,048,576-byte units."}" != "$out"
 check block-size test "${out#*1048576}" != "$out"
 
+esc=$(printf '\033')
+set +e
+out=$(printf 't\n\033[Cq' | \
+	INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l"}' \
+	INTERPRET_STUB_TEACH='{"summary":"Lists files.","parts":[{"token":"ls","meaning":"list entries"},{"token":"-l","meaning":"long format"}]}' \
+	script -qefc "$interpret sizes" /dev/null)
+status=$?
+set -e
+check interactive-exit test "$status" -ne 0
+check interactive-focus test "${out#*"$esc[1;36m"}" != "$out"
+check interactive-dim test "${out#*"$esc[2m"}" != "$out"
+check interactive-redraw test "${out#*"$esc[u$esc[J"}" != "$out"
+
 marker="$dir/x"
 echo stay > "$marker"
 set +e
