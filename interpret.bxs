@@ -628,6 +628,10 @@ function focus(text) {
 	return chr(27) & "[1;36m" & text & chr(27) & "[0m"
 }
 
+function tokenFocus(text) {
+	return chr(27) & "[30;46m" & text & chr(27) & "[0m"
+}
+
 function wipeLines(n) {
 	if (n < 1) {
 		return
@@ -675,15 +679,19 @@ function partStarts(command, parts) {
 	return starts
 }
 
-function colMark(starts, col, lastIdx) {
+function colOwner(starts, col, lastIdx) {
 	var idx = 1
 	while (idx <= lastIdx) {
 		if (starts[idx] == col) {
-			return true
+			return idx
 		}
 		idx = idx + 1
 	}
-	return false
+	return 0
+}
+
+function colMark(starts, col, lastIdx) {
+	return colOwner(starts, col, lastIdx) > 0
 }
 
 function selectedCommand(command, parts, starts, selected) {
@@ -702,7 +710,7 @@ function selectedCommand(command, parts, starts, selected) {
 		count = min(len(token), max(len(command) - start + 1, 0))
 		if (count > 0) {
 			piece = mid(command, start, count)
-			text = text & (idx == selected ? focus(piece) : faint(piece))
+			text = text & (idx == selected ? tokenFocus(piece) : faint(piece))
 			pos = start + count
 		}
 		idx = idx + 1
@@ -737,11 +745,16 @@ function printTree(command, parts, selected = 0) {
 			anchor = 1
 		}
 		while (col < anchor) {
-			line = line & (colMark(starts, col, pi - 1) ? "│" : " ")
+			owner = colOwner(starts, col, pi - 1)
+			if (selected > 0 && owner > 0) {
+				line = line & (owner == selected ? focus("│") : faint("│"))
+			} else {
+				line = line & (owner > 0 ? "│" : " ")
+			}
 			col = col + 1
 		}
 		if (selected > 0) {
-			say(pi == selected ? focus(line & "└─ " & meaning) : faint(line & "└─ " & meaning))
+			say(line & (pi == selected ? focus("└─ " & meaning) : faint("└─ " & meaning)))
 		} else {
 			say(cyan(line & "└─ ") & meaning)
 		}
@@ -753,8 +766,7 @@ function renderTeach(command, bundle, selected = 0) {
 	printTree(command, bundle.parts, selected)
 	if (structKeyExists(bundle, "summary") && trim(bundle.summary) != "") {
 		println("")
-		text = wrappedText(bundle.summary)
-		say(selected > 0 ? faint(text) : text)
+		sayWrapped(bundle.summary)
 	}
 	println("")
 }

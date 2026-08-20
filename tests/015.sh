@@ -47,7 +47,7 @@ check block-size test "${out#*1048576}" != "$out"
 
 esc=$(printf '\033')
 set +e
-out=$(printf 't\n\033[Cq' | \
+out=$(printf 't\n\033[C\033[Cq' | \
 	INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l"}' \
 	INTERPRET_STUB_TEACH='{"summary":"Lists files.","parts":[{"token":"ls","meaning":"list entries"},{"token":"-l","meaning":"long format"}]}' \
 	script -qefc "$interpret sizes" /dev/null)
@@ -55,7 +55,9 @@ status=$?
 set -e
 check interactive-exit test "$status" -ne 0
 check interactive-focus test "${out#*"$esc[1;36m"}" != "$out"
+check interactive-background test "${out#*"$esc[30;46m-l"}" != "$out"
 check interactive-dim test "${out#*"$esc[2m"}" != "$out"
+check interactive-pointer-owner test "${out#*"$esc[2m│$esc[0m  $esc[1;36m└─ long format"}" != "$out"
 check interactive-redraw test "${out#*"$esc[u$esc[J"}" != "$out"
 
 marker="$dir/x"
