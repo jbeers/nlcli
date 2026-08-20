@@ -1107,7 +1107,7 @@ function main() {
 	}
 	command = action.command
 	risk = mergeRisk(command, action)
-	if (!parsed.dryRun) {
+	if (!parsed.dryRun && !liveCall()) {
 		println("")
 	}
 	if (parsed.dryRun) {
