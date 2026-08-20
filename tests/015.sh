@@ -35,11 +35,14 @@ set -e
 check model-parts test "${out#*long format}" != "$out"
 
 set +e
-out=$(printf 't\nq\n' | INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l --block-size=M"}' \
-	INTERPRET_STUB_TEACH='{"summary":"Long listing with sizes in mebibytes.","parts":[{"token":"ls","meaning":"list directory entries"},{"token":"-l","meaning":"long format: mode, owner, size, mtime"},{"token":"--block-size=M","meaning":"sizes in 1048576-byte units, not SI MB"}]}' \
+out=$(printf 't\nq\n' | COLUMNS=45 \
+	INTERPRET_STUB_ACTION='{"type":"ExecuteCommand","command":"ls -l --block-size=M"}' \
+	INTERPRET_STUB_TEACH='{"summary":"Long listing with sizes in mebibytes and 1,048,576-byte units.","parts":[{"token":"ls","meaning":"list directory entries"},{"token":"-l","meaning":"long format: mode, owner, size, mtime"},{"token":"--block-size=M","meaning":"sizes in 1048576-byte units, not SI MB"}]}' \
 	"$interpret" "sizes")
 set -e
 check summary test "${out#*mebibytes}" != "$out"
+check wrapped-indent test "${out#*"
+  1,048,576-byte units."}" != "$out"
 check block-size test "${out#*1048576}" != "$out"
 
 marker="$dir/x"

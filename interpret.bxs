@@ -281,17 +281,20 @@ function liveCall() {
 }
 
 function spinBegin(label) {
-	stop = { on: false }
+	stop = {
+		on: false,
+		label: label,
+		frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
+	}
 	if (!liveCall()) {
 		return stop
 	}
-	frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"]
-	systemOutput(chr(13) & PAD & frames[1] & "  " & label, false, true)
+	systemOutput(chr(13) & PAD & stop.frames[1] & "  " & stop.label, false, true)
 	runAsync(() => {
 		var fi = 2
 		while (!stop.on) {
-			systemOutput(chr(13) & PAD & frames[fi] & "  " & label, false, true)
-			fi = (fi >= arrayLen(frames)) ? 1 : fi + 1
+			systemOutput(chr(13) & PAD & stop.frames[fi] & "  " & stop.label, false, true)
+			fi = (fi >= arrayLen(stop.frames)) ? 1 : fi + 1
 			sleep(80)
 		}
 	})
@@ -304,11 +307,19 @@ function spinEnd(stop) {
 		return
 	}
 	sleep(100)
-	systemOutput(chr(13) & "                              " & chr(13), false, true)
+	systemOutput(chr(13) & chr(27) & "[2K", false, true)
 }
 
 function say(text) {
 	println(PAD & replace(text, chr(10), chr(10) & PAD, "all"))
+}
+
+function sayWrapped(text) {
+	width = getSystemSetting("COLUMNS", "80")
+	if (!isNumeric(width) || width < 20) {
+		width = 80
+	}
+	say(wrap(text, width - len(PAD), true))
 }
 
 function askPad(prompt) {
@@ -720,7 +731,7 @@ function confirmRun(risky, command, action) {
 			printTree(command, bundle.parts)
 			if (structKeyExists(bundle, "summary") && trim(bundle.summary) != "") {
 				println("")
-				say(bundle.summary)
+				sayWrapped(bundle.summary)
 			}
 			println("")
 			action["_shownTeach"] = true
@@ -779,7 +790,7 @@ function showExplanation(action) {
 	if (text == "") {
 		text = "(no explanation)"
 	}
-	say(text)
+	sayWrapped(text)
 }
 
 function historyFile() {

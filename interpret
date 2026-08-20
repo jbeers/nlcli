@@ -20,6 +20,10 @@ if [ ! -x "$mb" ]; then
 	echo "interpret: matchbox not found (set MATCHBOX)" >&2
 	exit 127
 fi
+if [ -t 1 ] || [ -t 2 ]; then
+	COLUMNS=$(tput cols 2>/dev/null || printf 80)
+	export COLUMNS
+fi
 case "$1" in
 	--version|-v) exec "$mb" "$here/interpret.bxs" -- --interpret-version ;;
 	--help|-h) exec "$mb" "$here/interpret.bxs" -- --interpret-help ;;
