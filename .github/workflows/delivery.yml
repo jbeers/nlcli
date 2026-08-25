@@ -1,0 +1,154 @@
+name: Build, test, and release
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: delivery-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MATCHBOX_REF: df2303af8e5cc5340f99a260e8ee8bf74f172ecf
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Check out nlcli
+        uses: actions/checkout@v4
+
+      - name: Check out MatchBox
+        uses: actions/checkout@v4
+        with:
+          repository: ortus-boxlang/matchbox
+          ref: ${{ env.MATCHBOX_REF }}
+          path: matchbox
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache MatchBox build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            matchbox/target
+          key: matchbox-${{ runner.os }}-${{ runner.arch }}-${{ env.MATCHBOX_REF }}
+
+      - name: Build MatchBox
+        run: >-
+          cargo build --release
+          --manifest-path matchbox/Cargo.toml
+          --no-default-features
+          --features bif-io,bif-crypto,bif-cli,bif-http
+
+      - name: Run nlcli tests
+        if: runner.os == 'Linux'
+        env:
+          MATCHBOX: ${{ github.workspace }}/matchbox/target/release/matchbox
+        run: |
+          for test in tests/*.sh; do
+            "$test"
+          done
+
+      - name: Name platform artifact
+        id: platform
+        shell: bash
+        run: |
+          case "$(uname -s)-$(uname -m)" in
+            Linux-x86_64)  asset=nlcli-linux-x64 ;;
+            Linux-aarch64) asset=nlcli-linux-arm64 ;;
+            Darwin-x86_64) asset=nlcli-macos-x64 ;;
+            Darwin-arm64)  asset=nlcli-macos-arm64 ;;
+            *) echo "Unsupported host: $(uname -s)-$(uname -m)" >&2; exit 1 ;;
+          esac
+          echo "asset=$asset" >> "$GITHUB_OUTPUT"
+
+      - name: Build standalone nlcli
+        shell: bash
+        run: |
+          mkdir -p package dist
+          matchbox/target/release/matchbox \
+            --target native \
+            --no-shaking \
+            --strip-source \
+            --output package/nlcli \
+            nlcli.bxs
+          chmod +x package/nlcli
+          package/nlcli --version | grep -F "nlcli "
+          NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"printf ok"}' \
+            package/nlcli -n smoke | grep -Fx "printf ok"
+          tar -czf "dist/${{ steps.platform.outputs.asset }}.tar.gz" -C package nlcli
+
+      - name: Upload standalone binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.platform.outputs.asset }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish ${{ github.ref_name }}
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: nlcli-*
+          merge-multiple: true
+
+      - name: Create checksums
+        run: |
+          cd release-assets
+          sha256sum *.tar.gz > checksums.txt
+
+      - name: Publish rolling snapshot
+        if: github.ref_name == 'dev'
+        run: |
+          gh release delete snapshot --cleanup-tag --yes || true
+          git tag -f snapshot "$GITHUB_SHA"
+          git push origin snapshot --force
+          gh release create snapshot release-assets/* \
+            --title "nlcli snapshot" \
+            --notes "Rolling snapshot of dev at $GITHUB_SHA." \
+            --prerelease
+
+      - name: Publish official release
+        if: github.ref_name == 'main'
+        run: |
+          version=$(sed -n 's/^VERSION = "\([^"]*\)"/\1/p' nlcli.bxs)
+          test -n "$version"
+          tag="v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "::error::Release $tag already exists; bump VERSION before merging to main."
+            exit 1
+          fi
+          git tag "$tag" "$GITHUB_SHA"
+          git push origin "$tag"
+          gh release create "$tag" release-assets/* \
+            --title "nlcli $tag" \
+            --generate-notes \
+            --latest

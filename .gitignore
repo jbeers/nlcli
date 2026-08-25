@@ -1,1 +1,5 @@
 nlcli.env
+.opencode/
+.vscode/
+panic_debug.txt
+dist/

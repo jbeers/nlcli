@@ -12,22 +12,33 @@ Risky commands are shown in red, include a warning, and default to **No**. Safe 
 
 ## Requirements
 
-- Bash for the optional `@` integration
-- [MatchBox](https://github.com/ortus-boxlang/matchbox) built with `bif-cli` and `bif-http`
-- An OpenAI-compatible chat-completions endpoint
+The standalone release binary has no runtime dependencies. Running from source requires [MatchBox](https://github.com/ortus-boxlang/matchbox) built with `bif-cli` and `bif-http`. Bash is required only for the optional `@` integration.
 
-By default the launcher looks for MatchBox at:
+Both forms require an OpenAI-compatible chat-completions endpoint.
 
-```text
-~/dev/ortus-boxlang/matchbox/target/debug/matchbox
-~/dev/ortus-boxlang/matchbox/target/release/matchbox
+## Install a release
+
+Download the archive for your platform from [GitHub Releases](https://github.com/jbeers/nlcli/releases). For Linux x64:
+
+```bash
+curl -LO https://github.com/jbeers/nlcli/releases/latest/download/nlcli-linux-x64.tar.gz
+tar -xzf nlcli-linux-x64.tar.gz
+install -m 755 nlcli ~/.local/bin/nlcli
 ```
 
-Set `MATCHBOX` to use another path.
+Until platform config support lands, provide settings through environment variables:
 
-## Setup
+```bash
+export NLCLI_API_KEY=your-key
+export NLCLI_BASE_URL=https://api.openai.com/v1
+export NLCLI_MODEL=gpt-4o-mini
+```
 
-Create a gitignored `nlcli.env` beside the executable:
+## Run from source
+
+The source launcher looks for MatchBox at `~/dev/ortus-boxlang/matchbox/target/debug/matchbox` and `target/release/matchbox`. Set `MATCHBOX` to use another path.
+
+Create a gitignored `nlcli.env` beside the source launcher:
 
 ```dotenv
 NLCLI_API_KEY=your-key
@@ -146,5 +157,7 @@ Run the shell test suite:
 ```bash
 for test in tests/*.sh; do "$test"; done
 ```
+
+CI builds and tests standalone Linux and macOS binaries. Every push to `dev` replaces the rolling `snapshot` prerelease. Every push to `main` publishes the version declared in `nlcli.bxs`; merging without bumping `VERSION` fails if that release already exists.
 
 History is stored in `~/.nlcli/history.jsonl`, or under `NLCLI_HOME` when set.
