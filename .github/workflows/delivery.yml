@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MATCHBOX_REF: df2303af8e5cc5340f99a260e8ee8bf74f172ecf
+  MATCHBOX_REF: 149278e3521c9524524354b0c7138bd957d4004a
 
 jobs:
   build:
@@ -65,10 +65,7 @@ jobs:
         if: runner.os == 'Linux'
         env:
           MATCHBOX: ${{ github.workspace }}/matchbox/target/release/matchbox
-        run: |
-          for test in tests/*.sh; do
-            "$test"
-          done
+        run: tests/run
 
       - name: Name platform artifact
         id: platform
@@ -98,6 +95,12 @@ jobs:
           NLCLI_STUB_ACTION='{"type":"ExecuteCommand","command":"printf ok"}' \
             package/nlcli -n smoke | grep -Fx "printf ok"
           tar -czf "dist/${{ steps.platform.outputs.asset }}.tar.gz" -C package nlcli
+
+      - name: Test standalone platform config
+        if: runner.os == 'Linux'
+        env:
+          NLCLI_BINARY: ${{ github.workspace }}/package/nlcli
+        run: tests/016.sh
 
       - name: Upload standalone binary
         uses: actions/upload-artifact@v4

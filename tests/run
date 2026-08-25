@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+matchbox=${MATCHBOX:-$HOME/dev/ortus-boxlang/matchbox/target/debug/matchbox}
+dir=
+trap '[ -z "$dir" ] || rm -rf "$dir"' EXIT HUP INT TERM
+
+for test in "$root"/tests/*.sh; do
+	dir=$(mktemp -d)
+	printf '\n==> %s\n' "${test##*/}"
+	HOME="$dir/home" NLCLI_HOME="$dir/nlcli" MATCHBOX="$matchbox" "$test"
+	rm -rf "$dir"
+	dir=
+done

@@ -1,8 +1,9 @@
 // nlcli — NL → shell command. MatchBox runtime.
 
-VERSION = "0.1.1"
+VERSION = "0.2.0"
 RISK_THRESHOLD = 7
 PAD = "  "
+CONFIG = {}
 
 function usage(error = false) {
 	text = "nlcli — turn natural language into reviewed shell commands" & chr(10)
@@ -23,7 +24,7 @@ function usage(error = false) {
 		& "  Enter  accept default   y  run   e  edit   q/n  cancel   ?  explain   t  teach" & chr(10)
 		& chr(10)
 		& "Configuration:" & chr(10)
-		& "  nlcli.env, NLCLI_API_KEY, NLCLI_BASE_URL, NLCLI_MODEL, MATCHBOX"
+		& "  config.toml, NLCLI_API_KEY, NLCLI_BASE_URL, NLCLI_MODEL, MATCHBOX"
 	systemOutput(text, true, error)
 }
 
@@ -134,27 +135,85 @@ function parseAction(text) {
 	return failAction("unsupported action: " & action.type)
 }
 
-function modelName() {
-	name = getSystemSetting("NLCLI_MODEL", "")
-	if (name == "") {
-		name = getSystemSetting("OPENAI_MODEL", "gpt-4o-mini")
+function isWindows() {
+	return findNoCase("windows", server.os.name) > 0
+}
+
+function userHome() {
+	home = getSystemSetting("HOME", "")
+	if (home == "") {
+		home = getSystemSetting("USERPROFILE", "/tmp")
 	}
-	return name
+	return home
+}
+
+function configFile() {
+	path = getSystemSetting("NLCLI_CONFIG", "")
+	if (path != "") {
+		return path
+	}
+	dir = getSystemSetting("NLCLI_HOME", "")
+	if (dir != "") {
+		return dir & "/config.toml"
+	}
+	if (isWindows()) {
+		dir = getSystemSetting("APPDATA", userHome() & "/AppData/Roaming")
+	} else {
+		dir = getSystemSetting("XDG_CONFIG_HOME", "")
+		if (dir == "") {
+			dir = userHome() & "/.config"
+		}
+	}
+	return dir & "/nlcli/config.toml"
+}
+
+function loadConfig() {
+	path = configFile()
+	if (!fileExists(path)) {
+		return {}
+	}
+	try {
+		text = fileRead(path)
+	} catch (e) {
+		systemOutput("nlcli: cannot read config " & path, true, true)
+		cliExit(2)
+	}
+	try {
+		config = deserializeTOML(text)
+	} catch (e) {
+		systemOutput("nlcli: invalid TOML in " & path & "; fix or remove it", true, true)
+		cliExit(2)
+	}
+	for (name in ["api_key", "base_url", "model"]) {
+		if (structKeyExists(config, name) && !isString(config[name])) {
+			systemOutput("nlcli: " & name & " in " & path & " must be a string", true, true)
+			cliExit(2)
+		}
+	}
+	return config
+}
+
+function configValue(name, nlcliEnv, openaiEnv, fallback = "") {
+	value = getSystemSetting(nlcliEnv, "")
+	if (value != "") {
+		return value
+	}
+	if (structKeyExists(CONFIG, name) && CONFIG[name] != "") {
+		return CONFIG[name]
+	}
+	return getSystemSetting(openaiEnv, fallback)
+}
+
+function modelName() {
+	return configValue("model", "NLCLI_MODEL", "OPENAI_MODEL", "gpt-4o-mini")
 }
 
 function apiKey() {
-	key = getSystemSetting("NLCLI_API_KEY", "")
-	if (key == "") {
-		key = getSystemSetting("OPENAI_API_KEY", "")
-	}
-	return key
+	return configValue("api_key", "NLCLI_API_KEY", "OPENAI_API_KEY")
 }
 
 function endpoint() {
-	base = getSystemSetting("NLCLI_BASE_URL", "")
-	if (base == "") {
-		base = getSystemSetting("OPENAI_BASE_URL", "https://api.openai.com/v1")
-	}
+	base = configValue("base_url", "NLCLI_BASE_URL", "OPENAI_BASE_URL", "https://api.openai.com/v1")
 	if (right(base, 1) == "/") {
 		base = left(base, len(base) - 1)
 	}
@@ -937,15 +996,39 @@ function showExplanation(action) {
 	sayWrapped(text)
 }
 
-function historyFile() {
+function stateDir() {
 	dir = getSystemSetting("NLCLI_HOME", "")
+	if (dir != "") {
+		return dir
+	}
+	if (isWindows()) {
+		return getSystemSetting("LOCALAPPDATA", userHome() & "/AppData/Local") & "/nlcli"
+	}
+	dir = getSystemSetting("XDG_STATE_HOME", "")
 	if (dir == "") {
-		dir = getSystemSetting("HOME", "/tmp") & "/.nlcli"
+		dir = userHome() & "/.local/state"
+	}
+	return dir & "/nlcli"
+}
+
+function historyFile() {
+	dir = stateDir()
+	path = dir & "/history.jsonl"
+	legacy = getSystemSetting("NLCLI_HOME", "") == "" ? userHome() & "/.nlcli/history.jsonl" : ""
+	if (!fileExists(path) && legacy != "" && fileExists(legacy)) {
+		try {
+			if (!directoryExists(dir)) {
+				directoryCreate(dir, true)
+			}
+			fileWrite(path, fileRead(legacy))
+		} catch (e) {
+			return legacy
+		}
 	}
 	if (!directoryExists(dir)) {
-		directoryCreate(dir)
+		directoryCreate(dir, true)
 	}
-	return dir & "/history.jsonl"
+	return path
 }
 
 function historyAppend(request, command, code) {
@@ -1235,6 +1318,7 @@ function main() {
 		usage(true)
 		cliExit(2)
 	}
+	variables.CONFIG = loadConfig()
 	action = resolve(parsed.request)
 	if (action.type != "ExecuteCommand") {
 		systemOutput(action.message, true, true)

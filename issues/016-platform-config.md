@@ -22,15 +22,16 @@ Never source or execute the config as shell code. Keep mutable state outside the
 
 ## Acceptance criteria
 
-- [ ] `nlcli` loads `api_key`, `base_url`, and `model` from the platform `config.toml`
-- [ ] `NLCLI_CONFIG` selects an alternate config file
-- [ ] `NLCLI_*` values override config values; config values override `OPENAI_*` fallbacks
-- [ ] Missing config remains valid and existing environment-only configuration still works
-- [ ] Invalid TOML produces a short actionable error and a non-zero exit
-- [ ] Config contents are parsed as data and are never sourced or executed
-- [ ] History uses the platform state directory and falls back to legacy history without data loss
-- [ ] README documents the paths, precedence, and Unix `chmod 600` recommendation
-- [ ] Tests isolate config/state under temporary directories and do not read the developer's real home directory
+- [x] `nlcli` loads `api_key`, `base_url`, and `model` from the platform `config.toml`
+- [x] `NLCLI_CONFIG` selects an alternate config file
+- [x] `NLCLI_HOME` overrides the default config location
+- [x] `NLCLI_*` values override config values; config values override `OPENAI_*` fallbacks
+- [x] Missing config remains valid and existing environment-only configuration still works
+- [x] Invalid TOML produces a short actionable error and a non-zero exit
+- [x] Config contents are parsed as data and are never sourced or executed
+- [x] History uses the platform state directory and falls back to legacy history without data loss
+- [x] README documents the paths, precedence, and Unix `chmod 600` recommendation
+- [x] Tests isolate config/state under temporary directories and do not read the developer's real home directory
 
 ## Out of scope
 

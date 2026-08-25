@@ -35,13 +35,32 @@ curl -fsSL https://raw.githubusercontent.com/jbeers/nlcli/main/install.sh \
 
 Published builds currently cover Linux x64 and macOS arm64. Other detected platforms fail with a clear missing-release error. Development builds are available from the rolling [snapshot prerelease](https://github.com/jbeers/nlcli/releases/tag/snapshot).
 
-Until platform config support lands, provide settings through environment variables:
+## Configuration
+
+On Unix, create `${XDG_CONFIG_HOME:-$HOME/.config}/nlcli/config.toml`:
+
+```toml
+api_key = "your-key"
+base_url = "https://api.openai.com/v1"
+model = "gpt-4o-mini"
+```
+
+Protect API keys from other local users:
 
 ```bash
-export NLCLI_API_KEY=your-key
-export NLCLI_BASE_URL=https://api.openai.com/v1
-export NLCLI_MODEL=gpt-4o-mini
+chmod 600 "${XDG_CONFIG_HOME:-$HOME/.config}/nlcli/config.toml"
 ```
+
+Windows uses `%APPDATA%\nlcli\config.toml`. Set `NLCLI_CONFIG` to use a specific file, or `NLCLI_HOME` to place `config.toml` and `history.jsonl` in a specific directory.
+
+Values are resolved in this order:
+
+1. `NLCLI_API_KEY`, `NLCLI_BASE_URL`, and `NLCLI_MODEL`
+2. `api_key`, `base_url`, and `model` from `config.toml`
+3. `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL`
+4. Built-in defaults
+
+The config file is optional. Environment variables remain useful for CI and temporary overrides.
 
 ## Enable `@` after installation
 
@@ -185,12 +204,12 @@ Teach mode never executes anything by itself. The approval keys remain active wh
 
 ## Development
 
-Run the shell test suite:
+Run the isolated shell test suite:
 
 ```bash
-for test in tests/*.sh; do "$test"; done
+tests/run
 ```
 
 CI builds and tests standalone Linux and macOS binaries. Every push to `dev` replaces the rolling `snapshot` prerelease. Every push to `main` publishes the version declared in `nlcli.bxs`; merging without bumping `VERSION` fails if that release already exists.
 
-History is stored in `~/.nlcli/history.jsonl`, or under `NLCLI_HOME` when set.
+History is stored separately from configuration: `${XDG_STATE_HOME:-$HOME/.local/state}/nlcli/history.jsonl` on Unix and `%LOCALAPPDATA%\nlcli\history.jsonl` on Windows. Existing `~/.nlcli/history.jsonl` data is copied to the new Unix location on first use. `NLCLI_HOME` overrides both locations.
