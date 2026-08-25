@@ -1,5 +1,7 @@
 # nlcli
 
+[![Build, test, and release](https://github.com/jbeers/nlcli/actions/workflows/delivery.yml/badge.svg)](https://github.com/jbeers/nlcli/actions/workflows/delivery.yml)
+
 `nlcli` turns a natural-language request into a shell command, previews it, and asks before running it.
 
 ```console
