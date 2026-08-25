@@ -18,15 +18,22 @@ The standalone release binary has no runtime dependencies. Running from source r
 
 Both forms require an OpenAI-compatible chat-completions endpoint.
 
-## Install a release
+## Quick install
 
-Download the archive for your platform from [GitHub Releases](https://github.com/jbeers/nlcli/releases). Development builds are available from the rolling [snapshot prerelease](https://github.com/jbeers/nlcli/releases/tag/snapshot). For Linux x64:
+Install the latest release for your OS and architecture:
 
 ```bash
-curl -LO https://github.com/jbeers/nlcli/releases/latest/download/nlcli-linux-x64.tar.gz
-tar -xzf nlcli-linux-x64.tar.gz
-install -m 755 nlcli ~/.local/bin/nlcli
+curl -fsSL https://raw.githubusercontent.com/jbeers/nlcli/main/install.sh | sh
 ```
+
+The installer verifies the release checksum and writes `nlcli` to `~/.local/bin` by default. Set another destination when needed:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jbeers/nlcli/main/install.sh \
+  | NLCLI_INSTALL_DIR="$HOME/bin" sh
+```
+
+Published builds currently cover Linux x64 and macOS arm64. Other detected platforms fail with a clear missing-release error. Development builds are available from the rolling [snapshot prerelease](https://github.com/jbeers/nlcli/releases/tag/snapshot).
 
 Until platform config support lands, provide settings through environment variables:
 
@@ -35,6 +42,32 @@ export NLCLI_API_KEY=your-key
 export NLCLI_BASE_URL=https://api.openai.com/v1
 export NLCLI_MODEL=gpt-4o-mini
 ```
+
+## Enable `@` after installation
+
+Download the Bash integration to your user config directory:
+
+```bash
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/nlcli"
+mkdir -p "$config_dir"
+curl -fsSL https://raw.githubusercontent.com/jbeers/nlcli/main/at.bash \
+  -o "$config_dir/at.bash"
+```
+
+Then add the installed binary and integration to `~/.bashrc`:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+. "${XDG_CONFIG_HOME:-$HOME/.config}/nlcli/at.bash"
+```
+
+Reload Bash with `source ~/.bashrc`. You can now use:
+
+```bash
+@ show the ten largest files here
+```
+
+The `@` function sources approved commands into the current shell, allowing changes such as `cd` and `export` to persist. Direct `nlcli` execution cannot modify its parent shell.
 
 ## Run from source
 
@@ -56,14 +89,12 @@ Run directly:
 ./nlcli "list files modified today"
 ```
 
-For the shorter Bash interface:
+For the shorter Bash interface from a source checkout:
 
 ```bash
 . ./at.bash
 @ list files modified today
 ```
-
-The `@` function executes approved commands in the current shell, allowing changes such as `cd` and `export` to persist. Direct `nlcli` execution cannot modify its parent shell.
 
 ## Five things worth trying
 

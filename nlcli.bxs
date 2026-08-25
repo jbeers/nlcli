@@ -1,6 +1,6 @@
 // nlcli — NL → shell command. MatchBox runtime.
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 RISK_THRESHOLD = 7
 PAD = "  "
 

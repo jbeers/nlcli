@@ -1,8 +1,10 @@
 #!/bin/bash
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+PATH="$root:$PATH"
 # shellcheck disable=SC1091
 . "$root/at.bash"
+test "$_NLCLI" = "$root/nlcli"
 fail=0
 
 check() {
