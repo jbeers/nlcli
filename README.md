@@ -20,7 +20,7 @@ Both forms require an OpenAI-compatible chat-completions endpoint.
 
 ## Install a release
 
-Download the archive for your platform from [GitHub Releases](https://github.com/jbeers/nlcli/releases). For Linux x64:
+Download the archive for your platform from [GitHub Releases](https://github.com/jbeers/nlcli/releases). Development builds are available from the rolling [snapshot prerelease](https://github.com/jbeers/nlcli/releases/tag/snapshot). For Linux x64:
 
 ```bash
 curl -LO https://github.com/jbeers/nlcli/releases/latest/download/nlcli-linux-x64.tar.gz
