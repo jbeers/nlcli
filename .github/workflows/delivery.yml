@@ -109,6 +109,52 @@ jobs:
           path: dist/*.tar.gz
           if-no-files-found: error
 
+  docs:
+    name: Build documentation
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out nlcli
+        uses: actions/checkout@v4
+
+      - name: Set up BoxLang and BxSites
+        uses: ortus-boxlang/setup-boxlang@1.4.0
+        with:
+          modules: bx-sites bx-markdown bx-esapi bx-yaml bx-image
+
+      - name: Set GitHub Pages base URL
+        if: github.ref_name == 'main' && (github.event_name == 'push' || inputs.publish == true)
+        run: |
+          sed -i 's#^baseURL: .*#baseURL: "https://jbeers.github.io/nlcli/"#' bxsites.yaml
+
+      - name: Lint documentation
+        run: |
+          report=$(boxlang bxSites lint 2>&1)
+          printf '%s\n' "$report"
+          grep -Fq 'No lint issues found.' <<< "$report"
+
+      - name: Build documentation
+        run: boxlang bxSites build
+
+      - name: Verify documentation output
+        run: test -s site/index.html
+
+      - name: Check documentation links
+        run: |
+          report=$(boxlang bxSites check 2>&1)
+          printf '%s\n' "$report"
+          grep -Fq 'No broken links or missing alt text found.' <<< "$report"
+
+      - name: Publish documentation to GitHub Pages
+        if: github.ref_name == 'main' && (github.event_name == 'push' || inputs.publish == true)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
+          force_orphan: true
+
   publish:
     name: Publish ${{ github.ref_name }}
     if: github.event_name == 'push' || inputs.publish == true

@@ -1,0 +1,15 @@
+name: "nlcli"
+description: "Natural-language shell commands with a preview and safety gate."
+# Keep local preview at http://127.0.0.1:8080/; CI sets the Pages URL.
+baseURL: "/"
+theme:
+  name: bootstrap
+  options:
+    navCollapsible: true
+    tocPosition: sticky
+search: true
+repo:
+  url: "https://github.com/jbeers/nlcli"
+  editUri: "edit/main/docs/"
+footer: true
+lastUpdated: true
