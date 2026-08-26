@@ -1,0 +1,206 @@
+
+
+
+
+
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Getting started - nlcli</title>
+	<meta property="og:type" content="website">
+	<meta property="og:site_name" content="nlcli">
+	<meta property="og:title" content="Getting started">
+	
+
+	<link rel="canonical" href="https&#x3a;&#x2f;&#x2f;jbeers.github.io&#x2f;nlcli&#x2f;getting-started&#x2f;index.html">
+
+	<meta name="description" content="Natural-language shell commands with a preview and safety gate.">
+	<meta property="og:description" content="Natural-language shell commands with a preview and safety gate.">
+
+	<script>
+		( function () {
+			var configuredMode = "auto";
+			var stored = localStorage.getItem( "bxsites-theme" );
+			var prefersDark = window.matchMedia( "(prefers-color-scheme: dark)" ).matches;
+			var wantsDark = stored ? stored === "dark" : ( configuredMode === "dark" || ( configuredMode === "auto" && prefersDark ) );
+			if ( wantsDark ) {
+				document.documentElement.setAttribute( "data-theme", "dark" );
+			}
+		} )();
+	</script>
+	<link rel="stylesheet" href="/nlcli/assets/vendor/bootstrap/bootstrap.min.css">
+	<link rel="stylesheet" href="/nlcli/assets/vendor/highlight/github.min.css">
+	<link rel="stylesheet" href="/nlcli/assets/theme/style.css">
+	
+
+	<script>window.__BXSITES_BASE_PATH__ = "/nlcli/";</script>
+	<script>window.__BXSITES_SEARCH_NO_RESULTS__ = "No\x20results\x20found.";</script>
+	<script src="/nlcli/assets/vendor/minisearch/minisearch.js"></script>
+	<script src="/nlcli/assets/search.js" defer></script>
+
+	<script src="/nlcli/assets/vendor/alpine/cdn.min.js" defer></script>
+</head>
+<body x-data="{ dark: document.documentElement.getAttribute( 'data-theme' ) === 'dark' }" x-init="$watch( 'dark', v => { document.documentElement.setAttribute( 'data-theme', v ? 'dark' : 'light' ); localStorage.setItem( 'bxsites-theme', v ? 'dark' : 'light' ) } )">
+	<nav class="navbar navbar-expand-lg brand-navbar">
+		<div class="container-fluid navbar-row">
+			<a class="navbar-brand brand-mark" href="/nlcli/">⚡ nlcli</a>
+			<div class="navbar-controls">
+<div class="bxsites-search position-relative">
+	<input type="search" id="bxsites-search-input" class="form-control" placeholder="Search docs..." aria-label="Search">
+	<kbd class="bxsites-search-kbd" aria-hidden="true">Ctrl K</kbd>
+	<ul id="bxsites-search-results" class="bxsites-search-results list-unstyled"></ul>
+</div>
+
+
+
+				<a class="repo-link" href="https://github.com/jbeers/nlcli" target="_blank" rel="noopener noreferrer" aria-label="Repository" title="Repository"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.333-1.754-1.333-1.754-1.089-.744.083-.729.083-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.303-5.467-1.332-5.467-5.93 0-1.31.468-2.38 1.235-3.22-.123-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.301 1.23A11.5 11.5 0 0 1 12 5.803c1.02.005 2.045.138 3.003.404 2.29-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.873.118 3.176.77.84 1.235 1.91 1.235 3.22 0 4.61-2.807 5.625-5.48 5.92.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.216.694.825.576C20.565 21.795 24 17.298 24 12c0-6.63-5.37-12-12-12"/></svg></a>
+
+				<button type="button" class="theme-toggle" @click="dark = !dark" aria-label="Toggle dark mode">
+					<span x-show="!dark"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg></span>
+					<span x-show="dark" x-cloak><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span>
+				</button>
+				<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#bxsites-sidebar" aria-controls="bxsites-sidebar" aria-label="Toggle navigation">
+					<span class="navbar-toggler-icon"></span>
+				</button>
+			</div>
+		</div>
+	</nav>
+	<div class="container-fluid">
+		<div class="row">
+			<aside class="col-lg-3 col-xl-2 sidebar collapse d-lg-block" id="bxsites-sidebar">
+				<ul class="nav flex-column"><li class="nav-item"><a class="nav-link" href="/nlcli/index.html">Home</a></li><li class="nav-item"><a class="nav-link active" href="/nlcli/getting-started/index.html">Getting started</a></li><li class="nav-item"><a class="nav-link" href="/nlcli/usage/index.html">Usage</a></li><li class="nav-item"><a class="nav-link" href="/nlcli/configuration/index.html">Configuration</a></li><li class="nav-item"><a class="nav-link" href="/nlcli/development/index.html">Development</a></li></ul>
+			</aside>
+			<main class="col-lg-9 col-xl-8 content">
+
+				<article class="page-content">
+
+					<h1 class="page-title" id="page-title"><a href="#page-title" id="page-title" class="anchor"></a>Getting started</h1>
+					<p class="page-summary">Install nlcli, configure an endpoint, and make your first request.</p>
+<div class="page-tags mb-3"><a class="page-tag" href="/nlcli/tags/index.html#tag-setup">setup</a><a class="page-tag" href="/nlcli/tags/index.html#tag-installation">installation</a></div>
+<details class="bxsites-toc-mobile toc-mobile d-xl-none"><summary class="toc-mobile__summary">On this page</summary><ul class="list-unstyled"><li class="toc-level-2"><a href="#install-a-release">Install a release</a></li><li class="toc-level-2"><a href="#configure-the-model-endpoint">Configure the model endpoint</a></li><li class="toc-level-2"><a href="#make-a-request">Make a request</a></li><li class="toc-level-2"><a href="#enable-the--bash-integration">Enable the &#x40; Bash integration</a></li><li class="toc-level-2"><a href="#run-from-source">Run from source</a></li></ul></details>
+					<h1 id="getting-started"><a href="#getting-started" id="getting-started" name="getting-started" class="anchor"></a>Getting started</h1>
+<h2 id="install-a-release"><a href="#install-a-release" id="install-a-release" name="install-a-release" class="anchor"></a>Install a release</h2>
+<p>The installer downloads the latest release for the current operating system,
+verifies its SHA-256 checksum, and places <code>nlcli</code> in <code>~/.local/bin</code>:</p>
+<pre><code class="language-bash">curl -fsSL https://raw.githubusercontent.com/jbeers/nlcli/main/install.sh | sh
+</code></pre>
+<p>Put the destination on <code>PATH</code> if it is not there already:</p>
+<pre><code class="language-bash">export PATH=&quot;$HOME/.local/bin:$PATH&quot;
+</code></pre>
+<p>Choose another install directory with <code>NLCLI_INSTALL_DIR</code>:</p>
+<pre><code class="language-bash">curl -fsSL https://raw.githubusercontent.com/jbeers/nlcli/main/install.sh \
+  | NLCLI_INSTALL_DIR=&quot;$HOME/bin&quot; sh
+</code></pre>
+<p>The published release currently includes Linux x64 and macOS arm64 binaries.
+Other platforms fail with a missing-release message rather than installing an
+unverified build. Development builds are available from the
+<a href="https://github.com/jbeers/nlcli/releases/tag/snapshot">rolling snapshot</a>.</p>
+<p>Verify the installation:</p>
+<pre><code class="language-bash">nlcli --version
+</code></pre>
+<h2 id="configure-the-model-endpoint"><a href="#configure-the-model-endpoint" id="configure-the-model-endpoint" name="configure-the-model-endpoint" class="anchor"></a>Configure the model endpoint</h2>
+<p>Create a TOML file at the platform-specific path described in
+<a href="/nlcli/configuration/index.html">Configuration</a>:</p>
+<pre><code class="language-toml">api_key = &quot;your-key&quot;
+base_url = &quot;https://api.openai.com/v1&quot;
+model = &quot;gpt-4o-mini&quot;
+</code></pre>
+<p>The config file is optional. Environment variables are useful for temporary
+overrides and CI:</p>
+<pre><code class="language-bash">export NLCLI_API_KEY=your-key
+export NLCLI_BASE_URL=https://api.openai.com/v1
+export NLCLI_MODEL=gpt-4o-mini
+</code></pre>
+<p>On Unix, protect the file because it contains a secret:</p>
+<pre><code class="language-bash">chmod 600 &quot;${XDG_CONFIG_HOME:-$HOME/.config}/nlcli/config.toml&quot;
+</code></pre>
+<h2 id="make-a-request"><a href="#make-a-request" id="make-a-request" name="make-a-request" class="anchor"></a>Make a request</h2>
+<pre><code class="language-bash">nlcli &quot;list files modified today&quot;
+</code></pre>
+<p>nlcli displays the proposed command first. Press <strong>Enter</strong> to run a low-risk
+command, or use <code>y</code> for an explicit yes. High-risk commands default to No;
+they require an explicit <code>y</code>.</p>
+<p>Use dry-run when you only want the generated command:</p>
+<pre><code class="language-bash">nlcli --dry-run &quot;find every file larger than 1gb&quot;
+</code></pre>
+<h2 id="enable-the--bash-integration"><a href="#enable-the--bash-integration" id="enable-the--bash-integration" name="enable-the--bash-integration" class="anchor"></a>Enable the <code>@</code> Bash integration</h2>
+<p>The <code>@</code> function runs an approved command in the current Bash process. This is
+what lets <code>cd</code>, <code>export</code>, and similar shell changes persist after nlcli exits.</p>
+<p>Download the integration:</p>
+<pre><code class="language-bash">config_dir=&quot;${XDG_CONFIG_HOME:-$HOME/.config}/nlcli&quot;
+mkdir -p &quot;$config_dir&quot;
+curl -fsSL https://raw.githubusercontent.com/jbeers/nlcli/main/at.bash \
+  -o &quot;$config_dir/at.bash&quot;
+</code></pre>
+<p>Source it from <code>~/.bashrc</code>:</p>
+<pre><code class="language-bash">export PATH=&quot;$HOME/.local/bin:$PATH&quot;
+. &quot;${XDG_CONFIG_HOME:-$HOME/.config}/nlcli/at.bash&quot;
+</code></pre>
+<p>Reload Bash with <code>source ~/.bashrc</code>, then use:</p>
+<pre><code class="language-bash">@ create a temporary workspace, cd into it, and export DEBUG=1
+</code></pre>
+<p>The standalone <code>nlcli</code> process cannot modify its parent shell. Use <code>@</code> only
+when that behavior is needed.</p>
+<h2 id="run-from-source"><a href="#run-from-source" id="run-from-source" name="run-from-source" class="anchor"></a>Run from source</h2>
+<p>A source checkout includes a launcher that looks for MatchBox at
+<code>~/dev/ortus-boxlang/matchbox/target/debug/matchbox</code> and then the release
+location. Set <code>MATCHBOX</code> to use another executable:</p>
+<pre><code class="language-bash">MATCHBOX=/path/to/matchbox ./nlcli --dry-run &quot;list files&quot;
+</code></pre>
+<p>For local credentials, create the gitignored <code>nlcli.env</code> beside the launcher:</p>
+<pre><code class="language-dotenv">NLCLI_API_KEY=your-key
+NLCLI_BASE_URL=https://api.openai.com/v1
+NLCLI_MODEL=gpt-4o-mini
+</code></pre>
+<p>The source launcher accepts <code>OPENAI_API_KEY</code>, <code>OPENAI_BASE_URL</code>, and
+<code>OPENAI_MODEL</code> as fallbacks too.</p>
+
+<div class="page-meta"><a href="https://github.com/jbeers/nlcli/edit/main/docs/getting-started.md" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg> Edit this page</a><a href="/nlcli/getting-started.md" download><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 15v-3l1.5 2 1.5-2v3"/><path d="M14.5 12v4M13 15.5l1.5 1.5 1.5-1.5"/></svg> Download Markdown</a><span class="page-meta__item"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Last updated Aug 26, 2026, 3&#x3a;16&#x3a;40 AM</span></div>
+				</article>
+
+				<nav class="page-nav d-flex justify-content-between" aria-label="Page navigation">
+
+					<a class="page-nav__prev" href="/nlcli/index.html">&larr; Home</a>
+
+					<a class="page-nav__next" href="/nlcli/usage/index.html">Usage &rarr;</a>
+
+				</nav>
+
+
+
+			</main>
+
+			<aside class="col-xl-2 toc-sidebar d-none d-xl-block">
+				<nav class="toc mb-4" aria-label="On this page"><div class="toc-title">On this page</div><ul class="list-unstyled"><li class="toc-level-2"><a href="#install-a-release">Install a release</a></li><li class="toc-level-2"><a href="#configure-the-model-endpoint">Configure the model endpoint</a></li><li class="toc-level-2"><a href="#make-a-request">Make a request</a></li><li class="toc-level-2"><a href="#enable-the--bash-integration">Enable the &#x40; Bash integration</a></li><li class="toc-level-2"><a href="#run-from-source">Run from source</a></li></ul></nav>
+			</aside>
+
+		</div>
+	</div>
+
+	<footer class="bxsites-footer">
+		<div class="container-fluid bxsites-footer__inner">
+			<div class="bxsites-footer__copy">&copy; 2026 nlcli</div>
+
+			<div class="bxsites-footer__credit">Built with <a href="https://github.com/ortus-boxlang/bx-sites" target="_blank" rel="noopener noreferrer">BX Sites</a></div>
+		</div>
+	</footer>
+
+	<script src="/nlcli/assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+	<script src="/nlcli/assets/vendor/highlight/highlight.min.js"></script>
+	<script src="/nlcli/assets/highlight-boxlang.js"></script>
+	<script>hljs.highlightAll();</script>
+	<script src="/nlcli/assets/code-lines.js"></script>
+	<script src="/nlcli/assets/copy-code.js" defer></script>
+	<script src="/nlcli/assets/admonition-collapse.js" defer></script>
+	<script src="/nlcli/assets/nav-toggle.js" defer></script>
+	<script src="/nlcli/assets/toc-collapse.js" defer></script>
+	<script src="/nlcli/assets/tabs.js" defer></script>
+	<script src="/nlcli/assets/conditional-content-init.js" defer></script>
+	<script src="/nlcli/assets/prompt-init.js" defer></script>
+
+	
+</body>
+</html>
+

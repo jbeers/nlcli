@@ -1,0 +1,117 @@
+
+
+
+
+
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Tags - nlcli</title>
+	<meta property="og:type" content="website">
+	<meta property="og:site_name" content="nlcli">
+	<meta property="og:title" content="Tags">
+	
+
+	<link rel="canonical" href="https&#x3a;&#x2f;&#x2f;jbeers.github.io&#x2f;nlcli&#x2f;tags&#x2f;index.html">
+
+	<meta name="description" content="Natural-language shell commands with a preview and safety gate.">
+	<meta property="og:description" content="Natural-language shell commands with a preview and safety gate.">
+
+	<script>
+		( function () {
+			var configuredMode = "auto";
+			var stored = localStorage.getItem( "bxsites-theme" );
+			var prefersDark = window.matchMedia( "(prefers-color-scheme: dark)" ).matches;
+			var wantsDark = stored ? stored === "dark" : ( configuredMode === "dark" || ( configuredMode === "auto" && prefersDark ) );
+			if ( wantsDark ) {
+				document.documentElement.setAttribute( "data-theme", "dark" );
+			}
+		} )();
+	</script>
+	<link rel="stylesheet" href="/nlcli/assets/vendor/bootstrap/bootstrap.min.css">
+	<link rel="stylesheet" href="/nlcli/assets/vendor/highlight/github.min.css">
+	<link rel="stylesheet" href="/nlcli/assets/theme/style.css">
+	
+
+	<script>window.__BXSITES_BASE_PATH__ = "/nlcli/";</script>
+	<script>window.__BXSITES_SEARCH_NO_RESULTS__ = "No\x20results\x20found.";</script>
+	<script src="/nlcli/assets/vendor/minisearch/minisearch.js"></script>
+	<script src="/nlcli/assets/search.js" defer></script>
+
+	<script src="/nlcli/assets/vendor/alpine/cdn.min.js" defer></script>
+</head>
+<body x-data="{ dark: document.documentElement.getAttribute( 'data-theme' ) === 'dark' }" x-init="$watch( 'dark', v => { document.documentElement.setAttribute( 'data-theme', v ? 'dark' : 'light' ); localStorage.setItem( 'bxsites-theme', v ? 'dark' : 'light' ) } )">
+	<nav class="navbar navbar-expand-lg brand-navbar">
+		<div class="container-fluid navbar-row">
+			<a class="navbar-brand brand-mark" href="/nlcli/">⚡ nlcli</a>
+			<div class="navbar-controls">
+<div class="bxsites-search position-relative">
+	<input type="search" id="bxsites-search-input" class="form-control" placeholder="Search docs..." aria-label="Search">
+	<kbd class="bxsites-search-kbd" aria-hidden="true">Ctrl K</kbd>
+	<ul id="bxsites-search-results" class="bxsites-search-results list-unstyled"></ul>
+</div>
+
+
+
+				<a class="repo-link" href="https://github.com/jbeers/nlcli" target="_blank" rel="noopener noreferrer" aria-label="Repository" title="Repository"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.333-1.754-1.333-1.754-1.089-.744.083-.729.083-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.303-5.467-1.332-5.467-5.93 0-1.31.468-2.38 1.235-3.22-.123-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.301 1.23A11.5 11.5 0 0 1 12 5.803c1.02.005 2.045.138 3.003.404 2.29-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.873.118 3.176.77.84 1.235 1.91 1.235 3.22 0 4.61-2.807 5.625-5.48 5.92.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.216.694.825.576C20.565 21.795 24 17.298 24 12c0-6.63-5.37-12-12-12"/></svg></a>
+
+				<button type="button" class="theme-toggle" @click="dark = !dark" aria-label="Toggle dark mode">
+					<span x-show="!dark"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg></span>
+					<span x-show="dark" x-cloak><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span>
+				</button>
+				<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#bxsites-sidebar" aria-controls="bxsites-sidebar" aria-label="Toggle navigation">
+					<span class="navbar-toggler-icon"></span>
+				</button>
+			</div>
+		</div>
+	</nav>
+	<div class="container-fluid">
+		<div class="row">
+			<aside class="col-lg-3 col-xl-2 sidebar collapse d-lg-block" id="bxsites-sidebar">
+				<ul class="nav flex-column"><li class="nav-item"><a class="nav-link" href="/nlcli/index.html">Home</a></li><li class="nav-item"><a class="nav-link" href="/nlcli/getting-started/index.html">Getting started</a></li><li class="nav-item"><a class="nav-link" href="/nlcli/usage/index.html">Usage</a></li><li class="nav-item"><a class="nav-link" href="/nlcli/configuration/index.html">Configuration</a></li><li class="nav-item"><a class="nav-link" href="/nlcli/development/index.html">Development</a></li></ul>
+			</aside>
+			<main class="col-lg-9 col-xl-8 content">
+
+				<article class="page-content">
+
+					<h1 class="page-title" id="page-title"><a href="#page-title" id="page-title" class="anchor"></a>Tags</h1>
+
+
+					<h2 id="tag-configuration">configuration</h2><ul><li><a href="/nlcli/configuration/index.html">Configuration</a></li></ul><h2 id="tag-development">development</h2><ul><li><a href="/nlcli/development/index.html">Development</a></li></ul><h2 id="tag-installation">installation</h2><ul><li><a href="/nlcli/getting-started/index.html">Getting started</a></li></ul><h2 id="tag-reference">reference</h2><ul><li><a href="/nlcli/configuration/index.html">Configuration</a></li></ul><h2 id="tag-releases">releases</h2><ul><li><a href="/nlcli/development/index.html">Development</a></li></ul><h2 id="tag-safety">safety</h2><ul><li><a href="/nlcli/usage/index.html">Usage</a></li></ul><h2 id="tag-setup">setup</h2><ul><li><a href="/nlcli/getting-started/index.html">Getting started</a></li></ul><h2 id="tag-usage">usage</h2><ul><li><a href="/nlcli/usage/index.html">Usage</a></li></ul>
+
+				</article>
+
+
+
+			</main>
+
+		</div>
+	</div>
+
+	<footer class="bxsites-footer">
+		<div class="container-fluid bxsites-footer__inner">
+			<div class="bxsites-footer__copy">&copy; 2026 nlcli</div>
+
+			<div class="bxsites-footer__credit">Built with <a href="https://github.com/ortus-boxlang/bx-sites" target="_blank" rel="noopener noreferrer">BX Sites</a></div>
+		</div>
+	</footer>
+
+	<script src="/nlcli/assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+	<script src="/nlcli/assets/vendor/highlight/highlight.min.js"></script>
+	<script src="/nlcli/assets/highlight-boxlang.js"></script>
+	<script>hljs.highlightAll();</script>
+	<script src="/nlcli/assets/code-lines.js"></script>
+	<script src="/nlcli/assets/copy-code.js" defer></script>
+	<script src="/nlcli/assets/admonition-collapse.js" defer></script>
+	<script src="/nlcli/assets/nav-toggle.js" defer></script>
+	<script src="/nlcli/assets/toc-collapse.js" defer></script>
+	<script src="/nlcli/assets/tabs.js" defer></script>
+	<script src="/nlcli/assets/conditional-content-init.js" defer></script>
+	<script src="/nlcli/assets/prompt-init.js" defer></script>
+
+	
+</body>
+</html>
+

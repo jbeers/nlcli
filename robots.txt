@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jbeers.github.io/nlcli/sitemap.xml

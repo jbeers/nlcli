@@ -1,0 +1,11 @@
+# nlcli
+
+> Natural-language shell commands with a preview and safety gate.
+
+## Pages
+
+- [Home](https://jbeers.github.io/nlcli/index.html)
+- [Getting started](https://jbeers.github.io/nlcli/getting-started/index.html)
+- [Usage](https://jbeers.github.io/nlcli/usage/index.html)
+- [Configuration](https://jbeers.github.io/nlcli/configuration/index.html)
+- [Development](https://jbeers.github.io/nlcli/development/index.html)
