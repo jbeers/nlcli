@@ -194,11 +194,16 @@ jobs:
       - name: Publish official release
         if: github.ref_name == 'main'
         run: |
-          version=$(sed -n 's/^VERSION = "\([^"]*\)"/\1/p' nlcli.bxs)
+          version=$(jq -er '.version // empty' box.json)
+          runtime_version=$(awk -F'"' '/^VERSION = / { print $2; exit }' nlcli.bxs)
           test -n "$version"
+          if [ "$version" != "$runtime_version" ]; then
+            echo "::error::box.json version $version does not match nlcli.bxs VERSION $runtime_version."
+            exit 1
+          fi
           tag="v$version"
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
-            echo "::error::Release $tag already exists; bump VERSION before merging to main."
+            echo "::error::Release $tag already exists; bump version in box.json and nlcli.bxs before merging to main."
             exit 1
           fi
           git tag "$tag" "$GITHUB_SHA"

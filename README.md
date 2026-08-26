@@ -212,6 +212,6 @@ Run the isolated shell test suite:
 tests/run
 ```
 
-CI builds and tests standalone Linux and macOS binaries. Every push to `dev` replaces the rolling `snapshot` prerelease. Every push to `main` publishes the version declared in `nlcli.bxs`; merging without bumping `VERSION` fails if that release already exists.
+CI builds and tests standalone Linux and macOS binaries. Every push to `dev` replaces the rolling `snapshot` prerelease. Every push to `main` publishes the version in `box.json`; keep it matched with `VERSION` in `nlcli.bxs` and bump both before a release.
 
 History is stored separately from configuration: `${XDG_STATE_HOME:-$HOME/.local/state}/nlcli/history.jsonl` on Unix and `%LOCALAPPDATA%\nlcli\history.jsonl` on Windows. Existing `~/.nlcli/history.jsonl` data is copied to the new Unix location on first use. `NLCLI_HOME` overrides both locations.

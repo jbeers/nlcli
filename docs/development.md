@@ -66,8 +66,8 @@ tar -czf dist/nlcli-linux-x64.tar.gz -C package nlcli
 The release workflow performs the same build on Linux and macOS, runs the
 shell suite and a packaged-binary smoke test, then publishes archives and
 `checksums.txt`. Pushes to `dev` replace the `snapshot` prerelease. Pushes to
-`main` publish the version declared by `VERSION` in `nlcli.bxs`; bump that
-value before merging a new release.
+`main` publish the version in `box.json`; keep it matched with `VERSION` in
+`nlcli.bxs` and bump both before merging a new release.
 
 ## Documentation site
 

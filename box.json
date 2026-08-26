@@ -1,0 +1,23 @@
+{
+  "name": "nlcli",
+  "version": "0.2.1",
+  "author": "Jacob Beers <jbeers@ortussolutions.com>",
+  "slug": "nlcli",
+  "shortDescription": "Natural-language shell commands with a preview and safety gate.",
+  "description": "nlcli turns natural-language requests into reviewed shell commands, previews them, and asks before running.",
+  "homepage": "https://github.com/jbeers/nlcli",
+  "documentation": "https://jbeers.github.io/nlcli/",
+  "repository": {
+    "type": "git",
+    "URL": "https://github.com/jbeers/nlcli.git"
+  },
+  "bugs": "https://github.com/jbeers/nlcli/issues",
+  "keywords": [
+    "boxlang",
+    "cli",
+    "shell",
+    "natural-language",
+    "ai"
+  ],
+  "private": false
+}
